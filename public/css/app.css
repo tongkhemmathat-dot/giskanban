@@ -1,0 +1,35 @@
+/* JobCard Pro — custom CSS beyond Tailwind utility classes.
+   Mirrors public/mockup.html's <style> block (kept in sync intentionally —
+   the mockup is the confirmed-working visual/interaction reference). */
+
+html, body { height: 100%; }
+body { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; }
+
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* Kanban card */
+.card-item { cursor: grab; transition: box-shadow .15s, border-color .15s; }
+.card-item:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, .10); border-color: #818cf8; }
+
+/* SortableJS states (forceFallback:true renders these via the fallback clone) */
+.sortable-ghost { opacity: .35; }
+.sortable-chosen { cursor: grabbing; }
+
+.subtask-row:hover .subtask-actions { opacity: 1; }
+
+.modal-backdrop { background: rgba(15, 23, 42, .55); }
+
+.nav-link.active { background: #eef2ff; color: #4338ca; font-weight: 600; }
+
+.progress-bar-fill { transition: width .25s ease; }
+
+.col-body { min-height: 60px; }
+
+textarea { font-family: inherit; }
+
+/* Accessibility: visible focus ring (docs/06-ui-spec.md §12.3) */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}

@@ -73,11 +73,11 @@
 
 ## Phase 4 — Frontend
 
-- [ ] **4.1** `api.js` + `store.js` + `app.js` (hash router) + boot bootstrap
-- [ ] **4.2** `components/toast.js`
-- [ ] **4.3** ตัวเลือก "ฉันคือ" + `localStorage` key `jc_me`
-- [ ] **4.4** `board.view.js` + `components/card.js` + progress bar
-- [ ] **4.5** Drag & drop (Sortable) → ยิง `/move` + optimistic update
+- [x] **4.1** `api.js` + `store.js` + `app.js` (hash router) + boot bootstrap
+- [x] **4.2** `components/toast.js`
+- [x] **4.3** ตัวเลือก "ฉันคือ" + `localStorage` key `jc_me`
+- [x] **4.4** `board.view.js` + `components/card.js` + progress bar
+- [x] **4.5** Drag & drop (Sortable) → ยิง `/move` + optimistic update
       *AC:* API fail → การ์ดเด้งกลับที่เดิม + toast แจ้ง error
 - [ ] **4.6** `create-modal.js` — ช่องผู้สร้าง (บังคับ) + textarea ขั้นตอน + แม่แบบ
 - [ ] **4.7** `card-modal.js` 2 คอลัมน์ครบทุกส่วน
