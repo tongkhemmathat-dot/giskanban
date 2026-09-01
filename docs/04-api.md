@@ -41,6 +41,7 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
       "title": "Upgrade ArcGIS Enterprise 12.1",
       "type": "change", "priority": "high",
       "site": "DC-Rama9", "customer": "ฝ่าย GIS", "deviceRef": "GIS-APP-01",
+      "projectCode": "E26-0512",
       "dueDate": "2026-09-06T22:00", "slaDueAt": "2026-09-02T10:00",
       "slaStatus": "ok",
       "creator": { "id": 1, "name": "สมชาย ก.", "color": "#6366f1" },
@@ -78,6 +79,7 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
   "site": "DC-Rama9",
   "customer": "ฝ่าย GIS",
   "deviceRef": "GIS-APP-01",
+  "projectCode": "E26-1234",
   "dueDate": "2026-09-06T22:00",
   "creatorName": "สมชาย ก.",
   "assigneeNames": ["ณัฐพล ว."],
@@ -94,6 +96,7 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 4. `code` และ `slaDueAt` server สร้างเอง — ส่งมาจะถูกละเว้น
 5. `subtaskTitles` ถูก strip เลข/ขีดนำหน้า และข้ามบรรทัดว่าง
 6. ส่ง `templateSlug` ด้วย → ขั้นตอนจากแม่แบบ **ต่อท้าย** `subtaskTitles`
+7. `projectCode` **ไม่บังคับ** — ถ้าส่งมาต้องตรงรูปแบบ `E` + ปี 2 หลัก + `-` + เลข 4 หลัก (เช่น `E26-1234`) มิฉะนั้น `VALIDATION_ERROR`
 
 **201 Created** → คืน card object เต็ม (โครงเดียวกับใน bootstrap)
 

@@ -6,26 +6,26 @@
 
 ## Phase 0 — เตรียมโครงการ
 
-- [ ] **0.1** `npm init` + ติดตั้ง dependencies + ตั้ง `"type": "module"`
+- [x] **0.1** `npm init` + ติดตั้ง dependencies + ตั้ง `"type": "module"`
       *AC:* `npm run dev` ขึ้น server ที่ :3000 ได้
-- [ ] **0.2** สร้างโครงโฟลเดอร์ตาม `CLAUDE.md` ข้อ 4
-- [ ] **0.3** `.env.example`, `.gitignore` (`data/`, `node_modules/`, `.env`)
-- [ ] **0.4** ESLint + Prettier + `npm run lint`
-- [ ] **0.5** วาง `public/mockup.html` เป็น visual reference
+- [x] **0.2** สร้างโครงโฟลเดอร์ตาม `CLAUDE.md` ข้อ 4
+- [x] **0.3** `.env.example`, `.gitignore` (`data/`, `node_modules/`, `.env`)
+- [x] **0.4** ESLint + Prettier + `npm run lint`
+- [x] **0.5** วาง `public/mockup.html` เป็น visual reference
       *AC:* เปิดในเบราว์เซอร์แล้วลาก-วางได้ (mock data ล้วน)
 
 ---
 
 ## Phase 1 — ฐานข้อมูล
 
-- [ ] **1.1** `db/connection.js` — WAL mode + `foreign_keys = ON`
-- [ ] **1.2** `db/migrate.js` — runner + ตาราง `_migrations`
+- [x] **1.1** `db/connection.js` — WAL mode + `foreign_keys = ON`
+- [x] **1.2** `db/migrate.js` — runner + ตาราง `_migrations`
       *AC:* รัน 2 ครั้งติดกันไม่ error (idempotent)
-- [ ] **1.3** `migrations/001_init.sql` (ตาม `docs/03-database.md`)
-- [ ] **1.4** `migrations/002_subtasks.sql` + view `card_progress`
-- [ ] **1.5** `db/seed.js` — members 5, lists 6, templates 4, cards 10+
+- [x] **1.3** `migrations/001_init.sql` (ตาม `docs/03-database.md`)
+- [x] **1.4** `migrations/002_subtasks.sql` + view `card_progress`
+- [x] **1.5** `db/seed.js` — members 5, lists 6, templates 4, cards 10+
       *AC:* มีใบงาน `Upgrade ArcGIS Enterprise 12.1` พร้อม 11 ขั้นตอน (ติ๊ก 3)
-- [ ] **1.6** `utils/{sla,code,position,subtask}.js` + unit test
+- [x] **1.6** `utils/{sla,code,position,subtask}.js` + unit test
 
 ---
 
@@ -42,6 +42,7 @@
       *AC:* ส่งชื่อใหม่ → สร้าง member อัตโนมัติ
       *AC:* ไม่ส่ง assignee → assignee = creator
       *AC:* `code` และ `slaDueAt` ถูก server สร้างเอง
+      *AC:* `projectCode` ไม่บังคับ แต่ถ้าส่งมาต้องตรงรูปแบบ `E##-####` มิฉะนั้น 400
 - [ ] **2.6** `GET /api/cards` (+filter) และ `GET /api/cards/:id`
 - [ ] **2.7** `PATCH /api/cards/:id`
       *AC:* เปลี่ยน priority → `slaDueAt` คำนวณใหม่จาก `created_at` เดิม
@@ -104,10 +105,10 @@
 
 ## Phase 6 — ขึ้นระบบ
 
-- [ ] **6.1** `Dockerfile` (multi-stage, non-root, node:20-alpine)
-- [ ] **6.2** `docker-compose.yml` + volume `./data`
-- [ ] **6.3** `Caddyfile` + Basic Auth + TLS
-- [ ] **6.4** สคริปต์ backup รายวัน (`sqlite3 .backup`) เก็บ 14 วัน
+- [x] **6.1** `Dockerfile` (multi-stage, non-root, node:20-alpine)
+- [x] **6.2** `docker-compose.yml` + volume `./data`
+- [x] **6.3** `Caddyfile` + Basic Auth + TLS
+- [x] **6.4** สคริปต์ backup รายวัน (`sqlite3 .backup`) เก็บ 14 วัน
 - [ ] **6.5** `GET /api/health` เชื่อมกับ Docker healthcheck
 - [ ] **6.6** อัปเดต README ส่วนติดตั้งจริง
 

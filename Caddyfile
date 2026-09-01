@@ -1,0 +1,22 @@
+{$DOMAIN} {
+    encode gzip
+
+    # เลือกอย่างน้อย 1 แบบ
+
+    # แบบ A — รหัสผ่านเดียวทั้งทีม
+    basic_auth {
+        team {$TEAM_PASSWORD_HASH}
+    }
+
+    # แบบ B — จำกัดเฉพาะ IP สำนักงาน (uncomment เพื่อใช้)
+    # @notoffice not remote_ip 10.0.0.0/8 192.168.0.0/16
+    # respond @notoffice "Forbidden" 403
+
+    reverse_proxy app:3000
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

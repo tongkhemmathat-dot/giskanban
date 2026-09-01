@@ -74,6 +74,7 @@ CREATE TABLE cards (
   site            TEXT,
   customer        TEXT,
   device_ref      TEXT,
+  project_code    TEXT,                             -- รูปแบบ E<ปี 2 หลัก>-<เลข 4 หลัก> เช่น E26-1234 (ไม่บังคับ, validate ที่ zod)
   creator_id      INTEGER NOT NULL REFERENCES members(id),   -- ★ บังคับ
   started_at      TEXT,
   completed_at    TEXT,
