@@ -105,10 +105,10 @@
 
 ## Phase 6 — ขึ้นระบบ
 
-- [ ] **6.1** `Dockerfile` (multi-stage, non-root, node:20-alpine)
-- [ ] **6.2** `docker-compose.yml` + volume `./data`
-- [ ] **6.3** `Caddyfile` + Basic Auth + TLS
-- [ ] **6.4** สคริปต์ backup รายวัน (`sqlite3 .backup`) เก็บ 14 วัน
+- [x] **6.1** `Dockerfile` (multi-stage, non-root, node:20-alpine)
+- [x] **6.2** `docker-compose.yml` + volume `./data`
+- [x] **6.3** `Caddyfile` + Basic Auth + TLS
+- [x] **6.4** สคริปต์ backup รายวัน (`sqlite3 .backup`) เก็บ 14 วัน
 - [ ] **6.5** `GET /api/health` เชื่อมกับ Docker healthcheck
 - [ ] **6.6** อัปเดต README ส่วนติดตั้งจริง
 
