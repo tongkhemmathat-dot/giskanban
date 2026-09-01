@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobCard Pro — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  html,body{height:100%;}
+  body{font-family:'IBM Plex Sans Thai',system-ui,sans-serif;}
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+  .card-item{cursor:grab;transition:box-shadow .15s,border-color .15s;}
+  .card-item:hover{box-shadow:0 4px 14px rgba(0,0,0,.10);border-color:#818cf8;}
+  .sortable-ghost{opacity:.35;}
+  .sortable-chosen{cursor:grabbing;}
+  .subtask-row:hover .subtask-actions{opacity:1;}
+  .modal-backdrop{background:rgba(15,23,42,.55);}
+  .nav-link.active{background:#eef2ff;color:#4338ca;font-weight:600;}
+  .progress-bar-fill{transition:width .25s ease;}
+  .col-body{min-height:60px;}
+  textarea{font-family:inherit;}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 text-sm">
+<div id="mock-banner" class="bg-amber-400 text-amber-950 text-xs text-center py-1 font-medium">
+  🧪 MOCKUP — ข้อมูลจำลองทั้งหมด ใช้สำหรับรีวิว UI และเก็บ requirement เพิ่มเติม (ยังไม่เชื่อมต่อฐานข้อมูลจริง)
+</div>
+<div id="app" class="flex" style="height:calc(100% - 26px)"></div>
+<div id="modal-root"></div>
+<div id="toast-root" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center"></div>
+
+<script>
+/* =========================================================
+   Mock data
+   ========================================================= */
+const NOW = new Date('2026-09-01T13:00:00');
+
+const ICONS = {
+  incident:         { icon:'🚨', label:'Incident', chip:'bg-rose-50 text-rose-600 border-rose-200' },
+  service_request:  { icon:'🛠', label:'Service',  chip:'bg-sky-50 text-sky-600 border-sky-200' },
+  change:           { icon:'🔄', label:'Change',   chip:'bg-violet-50 text-violet-600 border-violet-200' },
+  maintenance:      { icon:'🧰', label:'PM',       chip:'bg-emerald-50 text-emerald-600 border-emerald-200' },
+};
+const PRIORITY = {
+  critical: { label:'Critical', dot:'bg-rose-600',   hours:4   },
+  high:     { label:'High',     dot:'bg-orange-500', hours:24  },
+  medium:   { label:'Medium',   dot:'bg-amber-400',  hours:72  },
+  low:      { label:'Low',      dot:'bg-slate-400',  hours:168 },
+};
+const AVATAR_COLORS = ['#6366f1','#10b981','#f43f5e','#f59e0b','#0ea5e9','#8b5cf6','#14b8a6','#ec4899'];
+const PROJECT_CODE_RE = /^E\d{2}-\d{4}$/;
+
+let MEMBERS = [
+  { id:1, name:'สมชาย ก.', short:'สช', color:'#6366f1' },
+  { id:2, name:'ณัฐพล ว.', short:'ณพ', color:'#10b981' },
+  { id:3, name:'ปรียา ส.', short:'ปย', color:'#f43f5e' },
+  { id:4, name:'อนุชา น.', short:'อช', color:'#f59e0b' },
+  { id:5, name:'วีระ ท.',  short:'วร', color:'#0ea5e9' },
+];
+let nextMemberId = 6;
+
+const LISTS = [
+  { id:1, name:'Backlog',        slug:'backlog', wipLimit:null, isDone:0 },
+  { id:2, name:'To Do',          slug:'todo',    wipLimit:null, isDone:0 },
+  { id:3, name:'In Progress',    slug:'doing',   wipLimit:4,    isDone:0 },
+  { id:4, name:'Waiting Vendor', slug:'waiting', wipLimit:null, isDone:0 },
+  { id:5, name:'Review',         slug:'review',  wipLimit:null, isDone:0 },
+  { id:6, name:'Done',           slug:'done',    wipLimit:null, isDone:1 },
+];
+
+const TEMPLATES = {
+  upgrade: { name:'อัปเกรดซอฟต์แวร์', items:[
+    'แจ้งผู้ใช้งาน + ขอ downtime window','ตรวจ release note / compatibility',
+    'ทำ backup ฐานข้อมูล + config','ทำ snapshot เครื่อง (rollback point)',
+    'ดาวน์โหลดตัวติดตั้ง + ตรวจ checksum','หยุดบริการที่เกี่ยวข้อง',
+    'ติดตั้งเวอร์ชันใหม่','ตรวจสอบ license / authorize',
+    'ทดสอบฟังก์ชันหลัก (smoke test)','เปิดบริการ + แจ้งผู้ใช้','เฝ้าระวัง 24 ชม. + สรุปผล',
+  ]},
+  pm: { name:'ตรวจเช็คอุปกรณ์ (PM)', items:[
+    'แจ้งเข้าพื้นที่ + ขออนุญาต','ตรวจสภาพกายภาพ / ไฟสถานะ','ทำความสะอาด + ตรวจพัดลม',
+    'ตรวจ log & alarm ย้อนหลัง','อัปเดต firmware (ถ้าจำเป็น)','ทดสอบ redundancy / failover',
+    'ถ่ายรูปหลังตรวจ','บันทึกผลลง PM report',
+  ]},
+  incident: { name:'แก้ไขเหตุขัดข้อง (Incident)', items:[
+    'ยืนยันอาการ + ขอบเขตผลกระทบ','แจ้งผู้ใช้งานที่กระทบ','เก็บ log / evidence',
+    'แก้ไขเบื้องต้น (workaround)','แก้ไขถาวร','ทดสอบยืนยันว่าใช้งานได้','แจ้งปิดเหตุ','สรุป root cause + แนวป้องกัน',
+  ]},
+  install: { name:'ติดตั้งอุปกรณ์ใหม่', items:[
+    'สำรวจหน้างาน + เตรียมพื้นที่','เตรียมอุปกรณ์ + สาย','ติดตั้ง rack / mount',
+    'เดินสายไฟ + สายสัญญาณ','ตั้งค่า config พื้นฐาน','เชื่อมเข้าระบบ monitoring',
+    'ทดสอบการใช้งาน','ส่งมอบ + ทำเอกสาร',
+  ]},
+};
+
+let subtaskIdSeq = 1;
+function makeSubtasks(items, doneCount, doers){
+  return items.map((title,i)=>{
+    const done = i < doneCount;
+    const who = doers[i % doers.length];
+    return { id: subtaskIdSeq++, title, isDone: done, doneBy: done ? who : null, doneAt: done ? NOW.toISOString() : null, assignee: who };
+  });
+}
+
+let CARDS = [
+  { id:101, code:'JC-000119', listId:1, title:'เครื่องพิมพ์ห้อง Lab ใช้งานไม่ได้',
+    description:'เครื่องพิมพ์ HP LaserJet ห้อง Lab ชั้น 3 ไม่ทำงาน แจ้งโดยฝ่ายบุคคล',
+    type:'incident', priority:'critical', site:'อาคาร A ชั้น 3', customer:'ฝ่ายบุคคล', deviceRef:'PRINTER-HR-02',
+    dueDate:null, createdAt:'2026-08-31T08:00', creator:'ปรียา ส.', assignees:[],
+    labels:[], subtasks:[], comments:[], attachments:[], timeLogs:[] },
+
+  { id:102, code:'JC-000120', listId:1, title:'รีเซ็ตรหัสผ่าน VPN',
+    description:'ผู้ใช้ลืมรหัสผ่าน VPN ขอรีเซ็ตใหม่',
+    type:'service_request', priority:'medium', site:null, customer:'ฝ่ายขาย', deviceRef:null,
+    dueDate:null, createdAt:'2026-08-31T10:00', creator:'วีระ ท.', assignees:[],
+    labels:[], subtasks:[], comments:[], attachments:[], timeLogs:[] },
+
+  { id:112, code:'JC-000134', listId:1, title:'ติดตั้งกล้องวงจรปิดจุดใหม่',
+    description:'ติดตั้งกล้องวงจรปิดเพิ่มบริเวณลานจอดรถ',
+    type:'change', priority:'low', site:'ลานจอดรถ', customer:null, deviceRef:null,
+    dueDate:'2026-09-10T17:00', createdAt:'2026-09-01T09:00', creator:'วีระ ท.', assignees:[],
+    labels:[], subtasks:makeSubtasks(TEMPLATES.install.items,0,['วีระ ท.']), comments:[], attachments:[], timeLogs:[] },
+
+  { id:103, code:'JC-000125', listId:2, title:'ขอสิทธิ์เข้าถึงระบบ HRIS',
+    description:'พนักงานใหม่ขอสิทธิ์เข้าใช้งานระบบ HRIS',
+    type:'service_request', priority:'low', site:null, customer:'ฝ่ายบุคคล', deviceRef:null,
+    dueDate:null, createdAt:'2026-08-30T09:00', creator:'อนุชา น.', assignees:['อนุชา น.'],
+    labels:[], subtasks:[], comments:[], attachments:[], timeLogs:[] },
+
+  { id:104, code:'JC-000128', listId:2, title:'ปรับปรุงเครือข่าย WiFi ชั้น 5',
+    description:'สัญญาณ WiFi ชั้น 5 อ่อน ต้องเพิ่มจุดกระจายสัญญาณ',
+    type:'change', priority:'high', site:'อาคาร B ชั้น 5', customer:null, deviceRef:'AP-B5-03',
+    projectCode:'E26-0488',
+    dueDate:'2026-09-05T17:00', createdAt:'2026-08-31T14:00', creator:'สมชาย ก.', assignees:['ณัฐพล ว.'],
+    labels:[], subtasks:[], comments:[], attachments:[], timeLogs:[] },
+
+  { id:111, code:'JC-000133', listId:2, title:'แจ้งเตือนใบรับรอง SSL ใกล้หมดอายุ',
+    description:'ใบรับรอง SSL ของเว็บไซต์หลักใกล้หมดอายุใน 7 วัน',
+    type:'incident', priority:'high', site:null, customer:null, deviceRef:'WEB-PROD-01',
+    dueDate:null, createdAt:'2026-08-31T15:30', creator:'สมชาย ก.', assignees:['สมชาย ก.'],
+    labels:[], subtasks:[], comments:[], attachments:[], timeLogs:[] },
+
+  { id:105, code:'JC-000130', listId:3, title:'Upgrade ArcGIS Enterprise 12.1',
+    description:'อัปเกรดจาก 11.3 → 12.1 นอกเวลาทำการ',
+    type:'change', priority:'high', site:'DC-Rama9', customer:'ฝ่าย GIS', deviceRef:'GIS-APP-01',
+    projectCode:'E26-0512',
+    dueDate:'2026-09-06T22:00', createdAt:'2026-09-01T10:00', creator:'สมชาย ก.', assignees:['ณัฐพล ว.'],
+    labels:[{name:'Network',color:'#0ea5e9'}],
+    subtasks: makeSubtasks(TEMPLATES.upgrade.items, 3, ['สมชาย ก.','สมชาย ก.','ณัฐพล ว.','ณัฐพล ว.']),
+    comments:[
+      { id:1, author:'ณัฐพล ว.', body:'เริ่ม backup ฐานข้อมูลแล้วครับ ใช้เวลาประมาณ 30 นาที', createdAt:'2026-09-01T10:30' },
+      { id:2, author:'สมชาย ก.', body:'รับทราบ แจ้งผู้ใช้งานเรียบร้อยแล้ว', createdAt:'2026-09-01T10:45' },
+    ],
+    attachments:[{ id:1, filename:'backup_checksum.log', uploader:'ณัฐพล ว.' }],
+    timeLogs:[{ id:1, member:'ณัฐพล ว.', hours:1.5, note:'เตรียม backup + checklist' }] },
+
+  { id:106, code:'JC-000131', listId:3, title:'ตรวจเช็ค UPS ห้อง Server',
+    description:'ตรวจเช็คสภาพแบตเตอรี่ UPS ประจำไตรมาส',
+    type:'maintenance', priority:'medium', site:'DC-Rama9', customer:null, deviceRef:'UPS-DC-01',
+    dueDate:'2026-09-04T17:00', createdAt:'2026-08-31T09:00', creator:'ณัฐพล ว.', assignees:['ปรียา ส.'],
+    labels:[], subtasks: makeSubtasks(TEMPLATES.pm.items, 2, ['ปรียา ส.']),
+    comments:[], attachments:[], timeLogs:[] },
+
+  { id:107, code:'JC-000132', listId:4, title:'เดินสายแลนใหม่ชั้น 2',
+    description:'รอผู้รับเหมาภายนอกเดินสายแลนเพิ่มจุดใช้งาน 6 จุด',
+    type:'maintenance', priority:'low', site:'อาคาร A ชั้น 2', customer:null, deviceRef:null,
+    dueDate:'2026-09-08T17:00', createdAt:'2026-08-29T09:00', creator:'วีระ ท.', assignees:['อนุชา น.'],
+    labels:[], subtasks: makeSubtasks(TEMPLATES.install.items, 3, ['อนุชา น.']),
+    comments:[], attachments:[], timeLogs:[] },
+
+  { id:113, code:'JC-000129', listId:5, title:'ย้ายเซิร์ฟเวอร์ไฟล์แชร์',
+    description:'ย้ายไฟล์เซิร์ฟเวอร์แผนกบัญชีไปเครื่องใหม่ เสร็จครบทุกขั้นตอนแล้ว รอตรวจสอบก่อนปิดงาน',
+    type:'change', priority:'medium', site:'DC-Rama9', customer:'ฝ่ายบัญชี', deviceRef:'FILE-ACC-02',
+    dueDate:'2026-09-02T17:00', createdAt:'2026-08-30T09:00', creator:'ปรียา ส.', assignees:['อนุชา น.'],
+    labels:[], subtasks: makeSubtasks(['ตรวจสอบพื้นที่จัดเก็บ','ย้ายไฟล์ทั้งหมด','ปรับสิทธิ์การเข้าถึง','ทดสอบเข้าถึงจากเครื่องผู้ใช้','แจ้งผู้ใช้งาน'], 5, ['อนุชา น.']),
+    comments:[{ id:3, author:'อนุชา น.', body:'ย้ายไฟล์เสร็จแล้ว รอ QA อีกรอบ', createdAt:'2026-09-01T08:00' }],
+    attachments:[], timeLogs:[] },
+
+  { id:109, code:'JC-000115', listId:6, title:'ติดตั้งเครื่องพิมพ์ใหม่แผนกบัญชี',
+    description:'ติดตั้งเครื่องพิมพ์เลเซอร์ใหม่ทดแทนเครื่องเดิมที่ชำรุด',
+    type:'change', priority:'medium', site:'อาคาร A ชั้น 1', customer:'ฝ่ายบัญชี', deviceRef:'PRINTER-ACC-01',
+    dueDate:'2026-08-30T17:00', createdAt:'2026-08-27T09:00', creator:'อนุชา น.', assignees:['วีระ ท.'],
+    completedAt:'2026-08-29T15:00',
+    labels:[], subtasks: makeSubtasks(TEMPLATES.install.items, 8, ['วีระ ท.']),
+    comments:[], attachments:[], timeLogs:[] },
+
+  { id:110, code:'JC-000110', listId:6, title:'PM เซิร์ฟเวอร์ห้อง Data Center Q3',
+    description:'ตรวจเช็คบำรุงรักษาเซิร์ฟเวอร์ประจำไตรมาส 3',
+    type:'maintenance', priority:'medium', site:'DC-Rama9', customer:null, deviceRef:'SRV-CORE-01',
+    dueDate:'2026-08-25T17:00', createdAt:'2026-08-20T09:00', creator:'ณัฐพล ว.', assignees:['ปรียา ส.'],
+    completedAt:'2026-08-24T16:00',
+    labels:[], subtasks: makeSubtasks(TEMPLATES.pm.items, 8, ['ปรียา ส.']),
+    comments:[], attachments:[], timeLogs:[] },
+];
+
+/* =========================================================
+   State
+   ========================================================= */
+const state = {
+  me: localStorage.getItem('jc_me') || '',
+  query: '',
+  filters: { priority:'', type:'', slaStatus:'' },
+  route: location.hash || '#/board',
+};
+
+/* =========================================================
+   Helpers
+   ========================================================= */
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function member(name){ return MEMBERS.find(m => m.name === name); }
+function listOf(card){ return LISTS.find(l => l.id === card.listId); }
+function calcSlaDueAt(priority, createdAt){ return new Date(new Date(createdAt).getTime() + PRIORITY[priority].hours*3600*1000); }
+function slaStatus(card){
+  const list = listOf(card);
+  if (list.isDone) return 'done';
+  const due = calcSlaDueAt(card.priority, card.createdAt);
+  if (due < NOW) return 'overdue';
+  const total = PRIORITY[card.priority].hours*3600*1000;
+  const remain = due - NOW;
+  if (remain / total < 0.25) return 'at_risk';
+  return 'ok';
+}
+function fmtDT(d){
+  d = new Date(d);
+  return d.toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function fmtD(d){
+  d = new Date(d);
+  return d.toLocaleDateString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function splitTitles(input){
+  const lines = Array.isArray(input) ? input : String(input).split(/\r?\n/);
+  return lines.map(s => s.replace(/^\s*(\d+[.)]|[-*•])\s*/, '').trim()).filter(Boolean).slice(0,100);
+}
+function progressOf(card){
+  const total = card.subtasks.length;
+  const done = card.subtasks.filter(s => s.isDone).length;
+  return { done, total, pct: total ? Math.round(done*100/total) : 0 };
+}
+function nextCode(){
+  const max = CARDS.reduce((m,c)=> Math.max(m, parseInt(c.code.slice(3),10)), 0);
+  return 'JC-' + String(max+1).padStart(6,'0');
+}
+function nextCardId(){ return CARDS.reduce((m,c)=>Math.max(m,c.id),0) + 1; }
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+function randomColor(){ return AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)]; }
+function findOrCreateMember(name){
+  name = String(name||'').trim();
+  if (!name) return null;
+  let m = member(name);
+  if (!m) {
+    m = { id: nextMemberId++, name, short: name.slice(0,2), color: randomColor() };
+    MEMBERS.push(m);
+  }
+  return m;
+}
+function avatarHTML(name, size='w-6 h-6 text-[10px]'){
+  const m = member(name);
+  if (!m) return '';
+  return `<div class="${size} rounded-full flex items-center justify-center text-white font-medium shrink-0" style="background:${m.color}" title="${esc(name)}">${esc(m.short)}</div>`;
+}
+
+let wasDragged = false;
+
+/* =========================================================
+   Toast
+   ========================================================= */
+function showToast(message, actionLabel, actionFn){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'bg-slate-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 text-sm animate-[fadeIn_.15s]';
+  el.innerHTML = `<span>${esc(message)}</span>` + (actionLabel ? `<button class="text-indigo-300 font-medium hover:text-indigo-200 shrink-0">${esc(actionLabel)}</button>` : '');
+  if (actionLabel) {
+    el.querySelector('button').onclick = () => { actionFn(); el.remove(); };
+  }
+  root.appendChild(el);
+  setTimeout(()=> el.remove(), 5000);
+}
+
+/* =========================================================
+   Business logic: toggle subtask + auto-move
+   ========================================================= */
+function toggleSubtask(cardId, subId){
+  const card = CARDS.find(c => c.id === cardId);
+  const st = card.subtasks.find(s => s.id === subId);
+  const wasFirstDoneBefore = card.subtasks.some(s => s.isDone);
+  st.isDone = !st.isDone;
+  st.doneBy = st.isDone ? (state.me || 'ไม่ระบุ') : null;
+  st.doneAt = st.isDone ? new Date().toISOString() : null;
+
+  const list = listOf(card);
+  if (st.isDone && !wasFirstDoneBefore && ['backlog','todo'].includes(list.slug)) {
+    card.listId = LISTS.find(l => l.slug === 'doing').id;
+    showToast(`"${card.title}" ถูกย้ายไป In Progress อัตโนมัติ`);
+  } else {
+    const prog = progressOf(card);
+    if (st.isDone && prog.done === prog.total && !['review','done'].includes(list.slug)) {
+      showToast(`ทำครบทุกขั้นตอนแล้ว ย้ายไป Review เลยไหม?`, 'ย้ายเลย', () => {
+        card.listId = LISTS.find(l => l.slug === 'review').id;
+        renderMain();
+      });
+    }
+  }
+  renderMain();
+  if (document.getElementById('modal-root').innerHTML) openCard(cardId);
+}
+
+/* =========================================================
+   Card / Board rendering
+   ========================================================= */
+function cardMatchesFilters(card){
+  const q = state.query.trim().toLowerCase();
+  if (q) {
+    const hay = [card.title, card.site, card.deviceRef, card.code, card.creator].filter(Boolean).join(' ').toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  if (state.filters.priority && card.priority !== state.filters.priority) return false;
+  if (state.filters.type && card.type !== state.filters.type) return false;
+  if (state.filters.slaStatus && slaStatus(card) !== state.filters.slaStatus) return false;
+  return true;
+}
+
+function slaChipHTML(card){
+  const s = slaStatus(card);
+  if (s === 'overdue') return `<span class="text-rose-600 text-[11px] font-medium flex items-center gap-1">⏰ เกินกำหนด</span>`;
+  if (s === 'at_risk') return `<span class="text-orange-500 text-[11px] font-medium flex items-center gap-1">⚠ ใกล้ครบ</span>`;
+  return '';
+}
+
+function cardHTML(card){
+  const t = ICONS[card.type];
+  const prog = progressOf(card);
+  const bar = prog.pct === 100 ? 'bg-emerald-500' : 'bg-indigo-500';
+  return `
+  <div class="card-item bg-white rounded-lg border border-slate-200 p-3 mb-2 relative" data-card-id="${card.id}" onclick="onCardClick(event, ${card.id})">
+    <div class="absolute left-0 top-3 bottom-3 w-1 rounded-r ${PRIORITY[card.priority].dot}"></div>
+    <div class="flex items-center justify-between mb-1 pl-2">
+      <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${t.label}</span>
+      ${slaChipHTML(card)}
+    </div>
+    <div class="font-medium text-slate-800 pl-2 mb-1 leading-snug">${esc(card.title)}</div>
+    ${card.site || card.customer ? `<div class="text-[11px] text-slate-500 pl-2">📍 ${esc(card.site||'')}${card.site&&card.customer?' · ':''}${esc(card.customer||'')}</div>` : ''}
+    ${card.deviceRef ? `<div class="text-[11px] text-slate-500 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
+    ${card.projectCode ? `<div class="text-[11px] text-slate-500 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}
+    <div class="text-[11px] text-slate-600 pl-2 mt-1 flex items-center gap-1">✍️ ผู้สร้าง: <span class="font-medium">${esc(card.creator)}</span></div>
+    ${prog.total > 0 ? `
+      <div class="pl-2 mt-2">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+          <span>ขั้นตอน ${prog.done}/${prog.total}</span><span>${prog.pct}%</span>
+        </div>
+        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${bar} progress-bar-fill" style="width:${prog.pct}%"></div></div>
+      </div>` : ''}
+    <div class="flex items-center justify-between mt-2 pl-2">
+      <div class="flex items-center gap-2 text-[11px] text-slate-500">
+        <span>${esc(card.code)}</span>
+        ${prog.total ? `<span>☑${prog.done}/${prog.total}</span>` : ''}
+        ${card.comments.length ? `<span>💬${card.comments.length}</span>` : ''}
+        ${card.attachments.length ? `<span>📎${card.attachments.length}</span>` : ''}
+      </div>
+      <div class="flex -space-x-1">${card.assignees.map(a=>avatarHTML(a)).join('')}</div>
+    </div>
+  </div>`;
+}
+
+function columnHTML(list){
+  const cards = CARDS.filter(c => c.listId === list.id && cardMatchesFilters(c));
+  const count = CARDS.filter(c => c.listId === list.id).length;
+  const overLimit = list.wipLimit && count > list.wipLimit;
+  return `
+  <div class="flex-shrink-0 w-72 bg-slate-200/60 rounded-xl flex flex-col max-h-full">
+    <div class="px-3 py-2 flex items-center justify-between">
+      <span class="font-semibold text-slate-700 text-sm">${esc(list.name)}</span>
+      <span class="text-xs font-medium ${overLimit?'text-rose-600':'text-slate-500'}">${count}${list.wipLimit?`/${list.wipLimit}`:''}</span>
+    </div>
+    <div class="col-body flex-1 overflow-y-auto px-2 pb-1" data-list-id="${list.id}">${cards.map(cardHTML).join('')}</div>
+    <button onclick="openCreateModal(${list.id})" class="mx-2 mb-2 text-xs text-slate-500 hover:text-indigo-600 hover:bg-white rounded py-1.5 text-left px-2">+ เพิ่มใบงาน</button>
+  </div>`;
+}
+
+function viewBoard(){
+  return `
+  <div class="flex items-center gap-2 mb-3 flex-wrap">
+    <select id="fPriority" class="border border-slate-300 rounded-md text-xs px-2 py-1.5">
+      <option value="">ทุกความสำคัญ</option>
+      ${Object.entries(PRIORITY).map(([k,v])=>`<option value="${k}" ${state.filters.priority===k?'selected':''}>${v.label}</option>`).join('')}
+    </select>
+    <select id="fType" class="border border-slate-300 rounded-md text-xs px-2 py-1.5">
+      <option value="">ทุกประเภท</option>
+      ${Object.entries(ICONS).map(([k,v])=>`<option value="${k}" ${state.filters.type===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}
+    </select>
+    <select id="fSla" class="border border-slate-300 rounded-md text-xs px-2 py-1.5">
+      <option value="">ทุกสถานะ SLA</option>
+      <option value="overdue" ${state.filters.slaStatus==='overdue'?'selected':''}>เกินกำหนด</option>
+      <option value="at_risk" ${state.filters.slaStatus==='at_risk'?'selected':''}>ใกล้ครบ</option>
+      <option value="ok" ${state.filters.slaStatus==='ok'?'selected':''}>ปกติ</option>
+    </select>
+    ${(state.filters.priority||state.filters.type||state.filters.slaStatus||state.query) ? `<button onclick="clearFilters()" class="text-xs text-indigo-600 hover:underline">ล้างตัวกรอง</button>`:''}
+  </div>
+  <div class="flex gap-3 overflow-x-auto h-[calc(100%-40px)] pb-2">
+    ${LISTS.map(columnHTML).join('')}
+  </div>`;
+}
+
+function clearFilters(){
+  state.filters = { priority:'', type:'', slaStatus:'' };
+  state.query = '';
+  document.getElementById('searchInput').value = '';
+  renderMain();
+}
+
+function onCardClick(evt, id){
+  if (wasDragged) { wasDragged = false; return; }
+  openCard(id);
+}
+
+function initBoardSortable(){
+  document.querySelectorAll('#main-content .col-body').forEach(el => {
+    Sortable.create(el, {
+      group: 'board',
+      animation: 150,
+      forceFallback: true,
+      fallbackTolerance: 3,
+      onStart: () => { wasDragged = true; },
+      onEnd: (evt) => {
+        const cardId = Number(evt.item.dataset.cardId);
+        const newListId = Number(evt.to.dataset.listId);
+        const card = CARDS.find(c => c.id === cardId);
+        const oldList = listOf(card).name;
+        card.listId = newListId;
+        const newList = LISTS.find(l => l.id === newListId);
+        renderMain();
+        if (oldList !== newList.name) showToast(`ย้าย "${card.title}" ไป ${newList.name} แล้ว`);
+        setTimeout(()=> wasDragged = false, 50);
+      },
+    });
+  });
+}
+
+/* =========================================================
+   Card modal
+   ========================================================= */
+function subtaskRowHTML(card, s){
+  return `
+  <div class="subtask-row flex items-center gap-2 py-1.5 group" data-sub-id="${s.id}">
+    <span class="cursor-grab text-slate-300 handle">⠿</span>
+    <input type="checkbox" ${s.isDone?'checked':''} onchange="toggleSubtask(${card.id}, ${s.id})" class="w-4 h-4 accent-indigo-600 shrink-0">
+    <span class="flex-1 text-sm ${s.isDone?'line-through text-slate-400':''}" ondblclick="editSubtaskTitle(${card.id}, ${s.id}, this)">${esc(s.title)}</span>
+    ${s.isDone ? `<span class="text-[11px] text-slate-400 shrink-0">โดย ${esc(s.doneBy)}</span>` : (s.assignee ? `<span class="text-[11px] text-slate-400 shrink-0">${esc(s.assignee)}</span>` : '')}
+    <div class="subtask-actions opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0">
+      <button onclick="deleteSubtask(${card.id}, ${s.id})" class="text-slate-400 hover:text-rose-500 text-xs">🗑</button>
+    </div>
+  </div>`;
+}
+
+function editSubtaskTitle(cardId, subId, el){
+  const card = CARDS.find(c=>c.id===cardId);
+  const s = card.subtasks.find(x=>x.id===subId);
+  const input = document.createElement('input');
+  input.value = s.title;
+  input.className = 'flex-1 text-sm border border-indigo-300 rounded px-1';
+  el.replaceWith(input);
+  input.focus();
+  const commit = () => { s.title = input.value.trim() || s.title; openCard(cardId); };
+  input.onblur = commit;
+  input.onkeydown = (e) => { if (e.key==='Enter') input.blur(); };
+}
+
+function deleteSubtask(cardId, subId){
+  const card = CARDS.find(c=>c.id===cardId);
+  card.subtasks = card.subtasks.filter(s=>s.id!==subId);
+  renderMain(); openCard(cardId);
+}
+
+function addSubtasksFromTextarea(cardId){
+  const ta = document.getElementById('newSubtaskInput');
+  const titles = splitTitles(ta.value);
+  if (!titles.length) return;
+  const card = CARDS.find(c=>c.id===cardId);
+  titles.forEach(title => card.subtasks.push({ id: subtaskIdSeq++, title, isDone:false, doneBy:null, doneAt:null, assignee:null }));
+  ta.value = '';
+  renderMain(); openCard(cardId);
+}
+
+function applyTemplate(cardId, slug){
+  if (!slug) return;
+  const card = CARDS.find(c=>c.id===cardId);
+  const tpl = TEMPLATES[slug];
+  tpl.items.forEach(title => card.subtasks.push({ id: subtaskIdSeq++, title, isDone:false, doneBy:null, doneAt:null, assignee:null }));
+  showToast(`เพิ่มขั้นตอนจากแม่แบบ "${tpl.name}" ${tpl.items.length} ข้อ`);
+  renderMain(); openCard(cardId);
+}
+
+function initSubtaskSortable(cardId){
+  const el = document.getElementById('subtaskList');
+  if (!el) return;
+  Sortable.create(el, {
+    handle: '.handle', animation:150,
+    forceFallback: true,
+    fallbackTolerance: 3,
+    onEnd: () => {
+      const card = CARDS.find(c=>c.id===cardId);
+      const order = [...el.children].map(li => Number(li.dataset.subId));
+      card.subtasks.sort((a,b)=> order.indexOf(a.id) - order.indexOf(b.id));
+      renderMain();
+    },
+  });
+}
+
+function buildActivities(card){
+  const acts = [{ t: card.createdAt, text: `${card.creator} สร้างใบงาน` }];
+  card.subtasks.filter(s=>s.isDone).forEach(s => acts.push({ t:s.doneAt, text:`${s.doneBy} ติ๊กเสร็จ "${s.title}"` }));
+  card.comments.forEach(c => acts.push({ t:c.createdAt, text:`${c.author} แสดงความคิดเห็น` }));
+  return acts.sort((a,b)=> new Date(b.t) - new Date(a.t)).slice(0,5);
+}
+
+function toggleAssignee(cardId, name){
+  const card = CARDS.find(c=>c.id===cardId);
+  const i = card.assignees.indexOf(name);
+  if (i>-1) card.assignees.splice(i,1); else card.assignees.push(name);
+  renderMain(); openCard(cardId);
+}
+
+function addComment(cardId){
+  const ta = document.getElementById('newCommentInput');
+  const body = ta.value.trim();
+  if (!body || !state.me) { if(!state.me) alert('กรุณาเลือก "ฉันคือ" ก่อนแสดงความคิดเห็น'); return; }
+  const card = CARDS.find(c=>c.id===cardId);
+  card.comments.push({ id: Date.now(), author: state.me, body, createdAt: new Date().toISOString() });
+  renderMain(); openCard(cardId);
+}
+
+function setPriority(cardId, priority){
+  const card = CARDS.find(c=>c.id===cardId);
+  card.priority = priority;
+  showToast('อัปเดตความสำคัญแล้ว — คำนวณ SLA ใหม่จากเวลาที่แจ้งงานเดิม');
+  renderMain(); openCard(cardId);
+}
+
+function deleteCard(cardId){
+  if (!confirm('ยืนยันลบใบงานนี้? การกระทำนี้ย้อนกลับไม่ได้')) return;
+  CARDS = CARDS.filter(c=>c.id!==cardId);
+  closeModal(); renderMain();
+}
+
+function openCard(id){
+  const card = CARDS.find(c => c.id === id);
+  const t = ICONS[card.type];
+  const prog = progressOf(card);
+  const acts = buildActivities(card);
+  const due = calcSlaDueAt(card.priority, card.createdAt);
+
+  document.getElementById('modal-root').innerHTML = `
+  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-4" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${t.label}</span>
+          <span class="text-xs text-slate-400">${esc(card.code)}</span>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
+      </div>
+      <div class="flex flex-col md:flex-row">
+        <div class="flex-1 p-5 md:w-2/3">
+          <h2 class="text-lg font-semibold mb-2" contenteditable="true" onblur="renameCard(${card.id}, this.innerText)">${esc(card.title)}</h2>
+          <textarea class="w-full text-sm border border-slate-200 rounded-md p-2 mb-4 text-slate-600" rows="2" onblur="setDescription(${card.id}, this.value)">${esc(card.description||'')}</textarea>
+
+          <div class="mb-5">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-medium text-sm">✅ ขั้นตอนการทำงาน ${prog.total?`· ${prog.done}/${prog.total} · ${prog.pct}%`:''}</span>
+              <select onchange="applyTemplate(${card.id}, this.value); this.value=''" class="text-xs border border-slate-300 rounded px-1.5 py-1">
+                <option value="">＋ ใช้แม่แบบ</option>
+                ${Object.entries(TEMPLATES).map(([k,v])=>`<option value="${k}">${esc(v.name)}</option>`).join('')}
+              </select>
+            </div>
+            ${prog.total ? `<div class="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2"><div class="h-full ${prog.pct===100?'bg-emerald-500':'bg-indigo-500'}" style="width:${prog.pct}%"></div></div>` : ''}
+            <div id="subtaskList">${card.subtasks.map(s=>subtaskRowHTML(card,s)).join('')}</div>
+            <textarea id="newSubtaskInput" placeholder="พิมพ์ขั้นตอนแล้วกด Enter · วางหลายบรรทัดพร้อมกันได้" class="w-full text-sm border border-dashed border-slate-300 rounded-md p-2 mt-2" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault(); addSubtasksFromTextarea(${card.id});}"></textarea>
+            <button onclick="addSubtasksFromTextarea(${card.id})" class="mt-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700">เพิ่ม</button>
+          </div>
+
+          <div class="mb-5">
+            <div class="font-medium text-sm mb-2">💬 ความคิดเห็น</div>
+            ${card.comments.map(c=>`
+              <div class="flex gap-2 mb-2">
+                ${avatarHTML(c.author)}
+                <div class="bg-slate-50 rounded-lg px-3 py-1.5 flex-1">
+                  <div class="text-xs font-medium">${esc(c.author)} <span class="text-slate-400 font-normal">${fmtDT(c.createdAt)}</span></div>
+                  <div class="text-sm">${esc(c.body)}</div>
+                </div>
+              </div>`).join('') || `<div class="text-xs text-slate-400">ยังไม่มีความคิดเห็น</div>`}
+            <div class="flex gap-2 mt-2">
+              <textarea id="newCommentInput" rows="1" placeholder="แสดงความคิดเห็น..." class="flex-1 text-sm border border-slate-200 rounded-md p-2"></textarea>
+              <button onclick="addComment(${card.id})" class="text-xs bg-indigo-600 text-white px-3 rounded-md hover:bg-indigo-700">ส่ง</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="font-medium text-sm mb-2">📎 ไฟล์แนบ</div>
+            ${card.attachments.map(a=>`<div class="text-sm flex items-center gap-2 mb-1">📄 ${esc(a.filename)} <span class="text-xs text-slate-400">โดย ${esc(a.uploader)}</span></div>`).join('') || `<div class="text-xs text-slate-400 mb-2">ยังไม่มีไฟล์แนบ</div>`}
+            <button onclick="showToast('ฟังก์ชันแนบไฟล์จะพร้อมใช้งานเมื่อเชื่อมต่อ backend')" class="text-xs border border-slate-300 rounded-md px-3 py-1.5 hover:bg-slate-50">+ แนบไฟล์</button>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-5 md:w-1/3 space-y-4">
+          <div>
+            <div class="text-xs text-slate-500 mb-1">✍️ ผู้สร้างใบงาน</div>
+            <div class="bg-white border border-indigo-100 rounded-lg px-3 py-2 flex items-center gap-2">
+              ${avatarHTML(card.creator)}<span class="font-medium text-sm">${esc(card.creator)}</span>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 mb-1">ผู้รับผิดชอบ</div>
+            <div class="flex flex-wrap gap-1 mb-1">
+              ${card.assignees.map(a=>`<span class="bg-white border border-slate-200 rounded-full px-2 py-0.5 text-xs flex items-center gap-1">${avatarHTML(a,'w-4 h-4 text-[8px]')}${esc(a)}</span>`).join('') || '<span class="text-xs text-slate-400">ยังไม่มีผู้รับผิดชอบ</span>'}
+            </div>
+            <button onclick="toggleAssignee(${card.id}, '${esc(state.me).replace(/'/g,"")}')" class="text-xs text-indigo-600 hover:underline" ${!state.me?'disabled title="เลือก ฉันคือ ก่อน"':''}>
+              ${card.assignees.includes(state.me) ? '↩ ถอนตัว' : '✋ รับงานนี้'}
+            </button>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 mb-1">ความสำคัญ</div>
+            <select onchange="setPriority(${card.id}, this.value)" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5">
+              ${Object.entries(PRIORITY).map(([k,v])=>`<option value="${k}" ${card.priority===k?'selected':''}>${v.label} (SLA ${v.hours} ชม.)</option>`).join('')}
+            </select>
+          </div>
+          <div class="text-xs space-y-1">
+            <div><span class="text-slate-500">กำหนดเสร็จ:</span> ${card.dueDate ? fmtD(card.dueDate) : '—'}</div>
+            <div><span class="text-slate-500">SLA ครบกำหนด:</span> ${fmtDT(due)} ${slaChipHTML(card)}</div>
+            <div><span class="text-slate-500">Site:</span> ${esc(card.site||'—')}</div>
+            <div><span class="text-slate-500">Device:</span> ${esc(card.deviceRef||'—')}</div>
+            <div><span class="text-slate-500">ลูกค้า:</span> ${esc(card.customer||'—')}</div>
+            <div><span class="text-slate-500">เลขโครงการ:</span> ${esc(card.projectCode||'—')}</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 mb-1">⏱ บันทึกเวลา (${card.timeLogs.reduce((s,t)=>s+t.hours,0)} ชม.)</div>
+            ${card.timeLogs.map(t=>`<div class="text-xs">${esc(t.member)} · ${t.hours} ชม. — ${esc(t.note||'')}</div>`).join('')}
+            <button onclick="showToast('ฟังก์ชันบันทึกเวลาจะพร้อมใช้งานเมื่อเชื่อมต่อ backend')" class="text-xs text-indigo-600 hover:underline mt-1">+ บันทึกเวลา</button>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 mb-1">📜 กิจกรรมล่าสุด</div>
+            ${acts.map(a=>`<div class="text-[11px] text-slate-500 mb-0.5">${fmtDT(a.t)} — ${esc(a.text)}</div>`).join('')}
+          </div>
+          <button onclick="deleteCard(${card.id})" class="text-xs text-rose-600 hover:underline">🗑 ลบใบงาน</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  initSubtaskSortable(card.id);
+}
+
+function renameCard(id, title){ const c=CARDS.find(x=>x.id===id); c.title = title.trim() || c.title; renderMain(); }
+function setDescription(id, val){ CARDS.find(x=>x.id===id).description = val; }
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; renderMain(); }
+
+/* =========================================================
+   Create modal
+   ========================================================= */
+function openCreateModal(presetListId){
+  const listId = presetListId || LISTS.find(l=>l.slug==='backlog').id;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-4" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">สร้างใบงานใหม่</h2>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+          <label class="text-xs font-medium text-indigo-700">✍️ ผู้สร้างใบงาน *</label>
+          <div class="flex gap-2 mt-1">
+            <select id="cCreator" class="flex-1 border border-slate-300 rounded-md text-sm px-2 py-1.5">
+              <option value="">— เลือกชื่อ —</option>
+              ${MEMBERS.map(m=>`<option value="${esc(m.name)}" ${state.me===m.name?'selected':''}>${esc(m.name)}</option>`).join('')}
+            </select>
+            <button onclick="addNewMemberInline('cCreator')" class="text-xs border border-indigo-300 text-indigo-600 rounded-md px-2 hover:bg-indigo-100">+ ชื่อใหม่</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-medium">ชื่องาน *</label>
+          <input id="cTitle" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1" placeholder="เช่น Upgrade ArcGIS Enterprise 12.1">
+        </div>
+        <div>
+          <label class="text-xs font-medium">รายละเอียด</label>
+          <textarea id="cDesc" rows="2" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium">ประเภทงาน</label>
+            <select id="cType" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+              ${Object.entries(ICONS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-medium">ความสำคัญ</label>
+            <select id="cPriority" onchange="document.getElementById('cSlaHint').innerText='SLA: ภายใน '+({critical:4,high:24,medium:72,low:168})[this.value]+' ชั่วโมง'" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+              ${Object.entries(PRIORITY).map(([k,v])=>`<option value="${k}" ${k==='medium'?'selected':''}>${v.label}</option>`).join('')}
+            </select>
+            <div id="cSlaHint" class="text-[11px] text-slate-400 mt-0.5">SLA: ภายใน 72 ชั่วโมง</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-medium">Site</label><input id="cSite" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+          <div><label class="text-xs font-medium">ลูกค้า</label><input id="cCustomer" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-medium">อุปกรณ์</label><input id="cDevice" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+          <div><label class="text-xs font-medium">กำหนดเสร็จ</label><input id="cDue" type="date" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+        </div>
+        <div>
+          <label class="text-xs font-medium">เลขโครงการ <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label>
+          <input id="cProjectCode" placeholder="E26-1234" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1 uppercase" maxlength="8">
+          <div class="text-[11px] text-slate-400 mt-0.5">รูปแบบ E + ปี 2 หลัก + "-" + เลข 4 หลัก เช่น E26-1234</div>
+        </div>
+        <div>
+          <label class="text-xs font-medium">ขั้นตอนการทำงาน</label>
+          <select id="cTemplate" class="w-full border border-slate-300 rounded-md text-xs px-2 py-1 mt-1 mb-1">
+            <option value="">ไม่ใช้แม่แบบ</option>
+            ${Object.entries(TEMPLATES).map(([k,v])=>`<option value="${k}">${esc(v.name)} (${v.items.length} ขั้นตอน)</option>`).join('')}
+          </select>
+          <textarea id="cSubtasks" rows="3" placeholder="1. ทำ backup&#10;2. ติดตั้งเวอร์ชันใหม่&#10;3. ทดสอบ" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5"></textarea>
+          <div class="text-[11px] text-slate-400 mt-0.5">วางรายการที่มีเลขนำหน้าได้เลย ระบบตัด "1." "-" ให้อัตโนมัติ</div>
+        </div>
+        <div>
+          <label class="text-xs font-medium">ผู้รับผิดชอบ (ไม่เลือก = ผู้สร้าง)</label>
+          <div class="flex flex-wrap gap-2 mt-1">
+            ${MEMBERS.map(m=>`<label class="text-xs border border-slate-200 rounded-full px-2 py-1 flex items-center gap-1 cursor-pointer hover:bg-slate-50">
+              <input type="checkbox" value="${esc(m.name)}" class="c-assignee accent-indigo-600"> ${esc(m.name)}
+            </label>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button onclick="closeModal()" class="text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">ยกเลิก</button>
+        <button onclick="submitCreate(${listId})" class="text-sm px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">สร้างใบงาน</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function addNewMemberInline(selectId){
+  const name = prompt('ชื่อสมาชิกใหม่:');
+  if (!name || !name.trim()) return;
+  const m = findOrCreateMember(name.trim());
+  const sel = document.getElementById(selectId);
+  if (sel) {
+    const opt = document.createElement('option');
+    opt.value = m.name; opt.textContent = m.name; opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function submitCreate(listId){
+  const creator = document.getElementById('cCreator').value;
+  const title = document.getElementById('cTitle').value.trim();
+  if (!creator) { alert('กรุณาเลือกผู้สร้างใบงาน'); return; }
+  if (!title) { alert('กรุณากรอกชื่องาน'); return; }
+
+  const projectCode = document.getElementById('cProjectCode').value.trim().toUpperCase();
+  if (projectCode && !PROJECT_CODE_RE.test(projectCode)) {
+    alert('รูปแบบเลขโครงการไม่ถูกต้อง — ต้องเป็น E + ปี 2 หลัก + "-" + เลข 4 หลัก เช่น E26-1234');
+    return;
+  }
+
+  const templateSlug = document.getElementById('cTemplate').value;
+  const manualTitles = splitTitles(document.getElementById('cSubtasks').value);
+  const templateTitles = templateSlug ? TEMPLATES[templateSlug].items : [];
+  const allTitles = [...manualTitles, ...templateTitles];
+
+  let assignees = [...document.querySelectorAll('.c-assignee:checked')].map(el => el.value);
+  if (!assignees.length) assignees = [creator];
+
+  const card = {
+    id: nextCardId(), code: nextCode(), listId,
+    title, description: document.getElementById('cDesc').value.trim(),
+    type: document.getElementById('cType').value, priority: document.getElementById('cPriority').value,
+    site: document.getElementById('cSite').value.trim() || null,
+    customer: document.getElementById('cCustomer').value.trim() || null,
+    deviceRef: document.getElementById('cDevice').value.trim() || null,
+    projectCode: projectCode || null,
+    dueDate: document.getElementById('cDue').value || null,
+    createdAt: new Date().toISOString(), creator, assignees,
+    labels: [], subtasks: allTitles.map(t => ({ id: subtaskIdSeq++, title:t, isDone:false, doneBy:null, doneAt:null, assignee:null })),
+    comments: [], attachments: [], timeLogs: [],
+  };
+  CARDS.push(card);
+  closeModal(); renderMain();
+  showToast(`สร้างใบงาน ${card.code} เรียบร้อย`);
+}
+
+/* =========================================================
+   Dashboard
+   ========================================================= */
+function viewDashboard(){
+  const doneListIds = LISTS.filter(l=>l.isDone).map(l=>l.id);
+  const open = CARDS.filter(c=>!doneListIds.includes(c.listId)).length;
+  const doing = CARDS.filter(c=>listOf(c).slug==='doing').length;
+  const overdue = CARDS.filter(c=>slaStatus(c)==='overdue').length;
+  const doneThisWeek = CARDS.filter(c=>doneListIds.includes(c.listId)).length;
+  const risky = CARDS.filter(c=>['overdue','at_risk'].includes(slaStatus(c)));
+
+  return `
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    ${kpiCard('งานเปิดอยู่', open, 'indigo')}
+    ${kpiCard('กำลังดำเนินการ', doing, 'sky')}
+    ${kpiCard('เกินกำหนด', overdue, 'rose')}
+    ${kpiCard('ปิดแล้ว', doneThisWeek, 'emerald')}
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><div class="text-sm font-medium mb-2">ภาระงานรายคน (ผู้รับผิดชอบ)</div><canvas id="chartWorkload" height="160"></canvas></div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4"><div class="text-sm font-medium mb-2">จำนวนใบงานที่แต่ละคนสร้าง</div><canvas id="chartCreator" height="160"></canvas></div>
+  </div>
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-4 py-2 font-medium text-sm border-b border-slate-100">งานเกินกำหนด + ใกล้ครบ</div>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-slate-500 text-xs border-b border-slate-100">
+        <th class="px-4 py-2">Code</th><th>งาน</th><th>ผู้สร้าง</th><th>ผู้รับผิดชอบ</th><th>ความคืบหน้า</th><th>กำหนด</th><th>สถานะ</th>
+      </tr></thead>
+      <tbody>
+        ${risky.map(c=>{ const p=progressOf(c); const s=slaStatus(c);
+          return `<tr class="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" onclick="openCard(${c.id})">
+            <td class="px-4 py-2">${esc(c.code)}</td><td>${esc(c.title)}</td><td>${esc(c.creator)}</td>
+            <td>${c.assignees.join(', ')||'—'}</td><td>${p.total?p.done+'/'+p.total:'—'}</td>
+            <td>${c.dueDate?fmtD(c.dueDate):'—'}</td>
+            <td>${s==='overdue'?'<span class="text-rose-600">เกินกำหนด</span>':'<span class="text-orange-500">ใกล้ครบ</span>'}</td>
+          </tr>`; }).join('') || `<tr><td class="px-4 py-3 text-slate-400" colspan="7">ไม่มีงานเกินกำหนดหรือใกล้ครบ 🎉</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+}
+function kpiCard(label, value, color){
+  return `<div class="bg-white rounded-xl border border-slate-200 p-4"><div class="text-xs text-slate-500 mb-1">${label}</div><div class="text-2xl font-semibold text-${color}-600">${value}</div></div>`;
+}
+let chartWorkload, chartCreator;
+function initDashboardCharts(){
+  const wCtx = document.getElementById('chartWorkload');
+  const cCtx = document.getElementById('chartCreator');
+  if (!wCtx || !cCtx) return;
+  const doneListIds = LISTS.filter(l=>l.isDone).map(l=>l.id);
+  const workload = MEMBERS.map(m => CARDS.filter(c=>c.assignees.includes(m.name) && !doneListIds.includes(c.listId)).length);
+  const created = MEMBERS.map(m => CARDS.filter(c=>c.creator===m.name).length);
+  if (chartWorkload) chartWorkload.destroy();
+  if (chartCreator) chartCreator.destroy();
+  chartWorkload = new Chart(wCtx, { type:'bar', data:{ labels: MEMBERS.map(m=>m.name), datasets:[{ data: workload, backgroundColor:'#6366f1', borderRadius:4 }] }, options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}} } });
+  chartCreator = new Chart(cCtx, { type:'bar', data:{ labels: MEMBERS.map(m=>m.name), datasets:[{ data: created, backgroundColor:'#10b981', borderRadius:4 }] }, options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,ticks:{stepSize:1}}} } });
+}
+
+/* =========================================================
+   My Tasks / Members
+   ========================================================= */
+function viewMyTasks(){
+  if (!state.me) return `<div class="text-sm text-slate-500">กรุณาเลือก "ฉันคือ" ที่แถบด้านบนก่อน เพื่อดูงานของคุณ</div>`;
+  const created = CARDS.filter(c=>c.creator===state.me);
+  const assigned = CARDS.filter(c=>c.assignees.includes(state.me));
+  return `
+  <div class="mb-6">
+    <div class="font-medium text-sm mb-2">📝 งานที่ฉันสร้าง (${created.length})</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">${created.map(c=>`<div>${cardHTML(c)}</div>`).join('') || '<div class="text-xs text-slate-400">ไม่มี</div>'}</div>
+  </div>
+  <div>
+    <div class="font-medium text-sm mb-2">✅ งานที่ฉันรับผิดชอบ (${assigned.length})</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">${assigned.map(c=>`<div>${cardHTML(c)}</div>`).join('') || '<div class="text-xs text-slate-400">ไม่มี</div>'}</div>
+  </div>`;
+}
+
+function viewMembers(){
+  return `
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-slate-500 text-xs border-b border-slate-100"><th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th></tr></thead>
+      <tbody>
+        ${MEMBERS.map(m=>{
+          const createdCount = CARDS.filter(c=>c.creator===m.name).length;
+          const doneListIds = LISTS.filter(l=>l.isDone).map(l=>l.id);
+          const pendingCount = CARDS.filter(c=>c.assignees.includes(m.name) && !doneListIds.includes(c.listId)).length;
+          return `<tr class="border-b border-slate-50">
+            <td class="px-4 py-2 flex items-center gap-2">${avatarHTML(m.name,'w-7 h-7 text-xs')}<span>${esc(m.name)}</span></td>
+            <td>${createdCount}</td><td>${pendingCount}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/* =========================================================
+   Shell / routing
+   ========================================================= */
+const NAV = [
+  { route:'#/board', icon:'📋', label:'Board' },
+  { route:'#/dashboard', icon:'📊', label:'Dashboard' },
+  { route:'#/mytasks', icon:'✅', label:'My Tasks' },
+  { route:'#/members', icon:'👥', label:'Members' },
+];
+
+function buildShell(){
+  document.getElementById('app').innerHTML = `
+  <aside class="w-52 bg-white border-r border-slate-200 flex flex-col shrink-0">
+    <div class="px-4 py-4 font-semibold text-indigo-600 text-lg">📋 JobCard Pro</div>
+    <nav id="sidebarNav" class="flex-1 px-2 space-y-1"></nav>
+  </aside>
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3">
+      <input id="searchInput" placeholder="🔍 ค้นหา (ชื่องาน / site / device / code / ผู้สร้าง)" class="border border-slate-300 rounded-md text-sm px-3 py-1.5 w-72">
+      <div class="flex-1"></div>
+      <label class="text-xs text-slate-500">ฉันคือ</label>
+      <select id="meSelect" class="border border-slate-300 rounded-md text-sm px-2 py-1.5"></select>
+      <button onclick="addNewMemberInline('meSelect')" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 hover:bg-slate-50">+ ชื่อใหม่</button>
+      <button onclick="openCreateModal()" class="bg-indigo-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-indigo-700 shrink-0">+ สร้างใบงาน</button>
+    </header>
+    <main id="main-content" class="flex-1 overflow-auto p-4"></main>
+  </div>`;
+
+  document.getElementById('searchInput').oninput = debounce(function(){ state.query = this.value; if(location.hash.startsWith('#/board')||!location.hash) renderMain(); }, 250);
+
+  const meSel = document.getElementById('meSelect');
+  meSel.innerHTML = `<option value="">— เลือกชื่อ —</option>` + MEMBERS.map(m=>`<option value="${esc(m.name)}" ${state.me===m.name?'selected':''}>${esc(m.name)}</option>`).join('');
+  meSel.onchange = function(){ state.me = this.value; localStorage.setItem('jc_me', state.me); renderMain(); };
+}
+
+function renderSidebar(){
+  const hash = location.hash || '#/board';
+  document.getElementById('sidebarNav').innerHTML = NAV.map(n => `
+    <a href="${n.route}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm ${hash.startsWith(n.route)?'active':''}">
+      <span>${n.icon}</span><span>${n.label}</span>
+    </a>`).join('');
+}
+
+function renderMain(){
+  renderSidebar();
+  const hash = location.hash || '#/board';
+  const main = document.getElementById('main-content');
+  if (hash.startsWith('#/dashboard')) { main.innerHTML = viewDashboard(); initDashboardCharts(); }
+  else if (hash.startsWith('#/mytasks')) { main.innerHTML = viewMyTasks(); }
+  else if (hash.startsWith('#/members')) { main.innerHTML = viewMembers(); }
+  else { main.innerHTML = viewBoard(); initBoardSortable();
+    ['fPriority','fType','fSla'].forEach((id,i) => {
+      const key = ['priority','type','slaStatus'][i];
+      document.getElementById(id).onchange = function(){ state.filters[key] = this.value; renderMain(); };
+    });
+  }
+}
+
+window.addEventListener('hashchange', renderMain);
+buildShell();
+if (!location.hash) location.hash = '#/board';
+renderMain();
+</script>
+</body>
+</html>
