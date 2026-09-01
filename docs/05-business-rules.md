@@ -125,6 +125,7 @@ export function midPosition(prev, next) {
 | `type` | ต้องอยู่ใน 4 ค่าที่กำหนด |
 | `priority` | ต้องอยู่ใน 4 ค่าที่กำหนด |
 | `dueDate` | ISO 8601 หรือ `null` |
+| `projectCode` | รูปแบบ `E` + ปี 2 หลัก + `-` + เลข 4 หลัก เช่น `E26-1234` หรือว่างได้ (ไม่บังคับ) |
 | `hours` (time log) | > 0 และ ≤ 24 |
 | `subtask.title` | 1–200 ตัวอักษร |
 | ไฟล์แนบ | ≤ 10 MB, MIME ที่อนุญาต |

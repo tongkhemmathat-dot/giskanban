@@ -42,6 +42,7 @@
       *AC:* ส่งชื่อใหม่ → สร้าง member อัตโนมัติ
       *AC:* ไม่ส่ง assignee → assignee = creator
       *AC:* `code` และ `slaDueAt` ถูก server สร้างเอง
+      *AC:* `projectCode` ไม่บังคับ แต่ถ้าส่งมาต้องตรงรูปแบบ `E##-####` มิฉะนั้น 400
 - [ ] **2.6** `GET /api/cards` (+filter) และ `GET /api/cards/:id`
 - [ ] **2.7** `PATCH /api/cards/:id`
       *AC:* เปลี่ยน priority → `slaDueAt` คำนวณใหม่จาก `created_at` เดิม

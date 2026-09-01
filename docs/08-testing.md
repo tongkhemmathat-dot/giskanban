@@ -66,6 +66,9 @@ tests/
 | C11 | DELETE card | subtasks/comments/attachments หายตาม |
 | C12 | GET `?q=ArcGIS` | เจอใบงานที่ title มีคำนี้ |
 | C13 | GET `?slaStatus=overdue` | คืนเฉพาะที่เกินกำหนดและยังไม่ปิด |
+| C14 | POST `projectCode: 'e26-1234'` | 201 + `projectCode` เก็บเป็น `E26-1234` (uppercase) |
+| C15 | POST `projectCode: 'E9-12'` (ผิดรูปแบบ) | 400 `VALIDATION_ERROR` |
+| C16 | POST ไม่ส่ง `projectCode` | 201 + `projectCode` เป็น `null` |
 
 ## 5. Test Cases — Subtasks API ★
 
