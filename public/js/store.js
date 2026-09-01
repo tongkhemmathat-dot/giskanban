@@ -48,7 +48,6 @@ function emit() {
     try {
       fn(state);
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error('store listener threw', e);
     }
   }

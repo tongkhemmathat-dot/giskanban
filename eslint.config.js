@@ -4,7 +4,7 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['node_modules/**', 'data/**', 'coverage/**', 'public/mockup.html'],
+    ignores: ['node_modules/**', 'data/**', 'coverage/**', 'public/mockup.html', '.claude/worktrees/**'],
   },
   js.configs.recommended,
   {
@@ -30,6 +30,9 @@ export default [
       sourceType: 'module',
       globals: {
         ...globals.browser,
+        // loaded via CDN <script> tags, no bundler/npm package per CLAUDE.md
+        Sortable: 'readonly',
+        Chart: 'readonly',
       },
     },
     rules: {
