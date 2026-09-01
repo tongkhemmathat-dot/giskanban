@@ -31,25 +31,25 @@
 
 ## Phase 2 — API หลัก
 
-- [ ] **2.1** `server/index.js` + `middleware/error.js` + `GET /api/health`
-- [ ] **2.2** `middleware/validate.js` (zod) + error format มาตรฐาน
-- [ ] **2.3** `members.routes.js` — GET / POST (upsert by name)
+- [x] **2.1** `server/index.js` + `middleware/error.js` + `GET /api/health`
+- [x] **2.2** `middleware/validate.js` (zod) + error format มาตรฐาน
+- [x] **2.3** `members.routes.js` — GET / POST (upsert by name)
       *AC:* POST ชื่อซ้ำ → คืนตัวเดิม status 200 ไม่สร้างซ้ำ
-- [ ] **2.4** `GET /api/bootstrap`
+- [x] **2.4** `GET /api/bootstrap`
       *AC:* 1 request ได้ board+lists+cards+members+labels+templates ครบ
-- [ ] **2.5** `POST /api/cards`
+- [x] **2.5** `POST /api/cards`
       *AC:* ไม่ส่ง `creatorName` → 400 `VALIDATION_ERROR`
       *AC:* ส่งชื่อใหม่ → สร้าง member อัตโนมัติ
       *AC:* ไม่ส่ง assignee → assignee = creator
       *AC:* `code` และ `slaDueAt` ถูก server สร้างเอง
       *AC:* `projectCode` ไม่บังคับ แต่ถ้าส่งมาต้องตรงรูปแบบ `E##-####` มิฉะนั้น 400
-- [ ] **2.6** `GET /api/cards` (+filter) และ `GET /api/cards/:id`
-- [ ] **2.7** `PATCH /api/cards/:id`
+- [x] **2.6** `GET /api/cards` (+filter) และ `GET /api/cards/:id`
+- [x] **2.7** `PATCH /api/cards/:id`
       *AC:* เปลี่ยน priority → `slaDueAt` คำนวณใหม่จาก `created_at` เดิม
-- [ ] **2.8** `PATCH /api/cards/:id/move`
+- [x] **2.8** `PATCH /api/cards/:id/move`
       *AC:* ย้ายเข้าคอลัมน์ `is_done` → ตั้ง `completed_at`
-- [ ] **2.9** `DELETE /api/cards/:id` + cascade ทุกตารางลูก
-- [ ] **2.10** assignees add / remove
+- [x] **2.9** `DELETE /api/cards/:id` + cascade ทุกตารางลูก
+- [x] **2.10** assignees add / remove
 
 ---
 

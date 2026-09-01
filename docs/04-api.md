@@ -62,6 +62,7 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 | GET | `/api/members` | – | `?active=1` กรองเฉพาะที่ใช้งาน |
 | POST | `/api/members` | `{ "name": "วีระ ท." }` | **upsert by name** — มีอยู่แล้วคืนตัวเดิม 200 |
 | PATCH | `/api/members/:id` | `{ name?, short?, color?, isActive? }` | |
+| DELETE | `/api/members/:id` | – | ลบไม่ได้ถ้ายังเป็นผู้สร้างใบงานใด → `409 CONFLICT` (docs/05-business-rules.md §3.5) |
 
 ---
 

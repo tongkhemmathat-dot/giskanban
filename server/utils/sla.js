@@ -45,3 +45,21 @@ export function calcSlaDueAt(priority, createdAt) {
   const due = new Date(base.getTime() + hours * 60 * 60 * 1000);
   return formatSqlite(due);
 }
+
+/**
+ * computeSlaStatus({ priority, slaDueAt, isDone }) -> 'done'|'overdue'|'at_risk'|'ok'
+ * Read-time SLA status classification (docs/05-business-rules.md §2 table).
+ * Pure function — the caller (card.service.js) is responsible for looking up
+ * whether the card's current list has is_done=1.
+ */
+export function computeSlaStatus({ priority, slaDueAt, isDone }) {
+  if (isDone) return 'done';
+  if (!slaDueAt) return 'ok';
+  const due = parseAsUtc(slaDueAt).getTime();
+  const now = Date.now();
+  if (due < now) return 'overdue';
+  const totalMs = (SLA_HOURS[priority] ?? 0) * 60 * 60 * 1000;
+  const remainingMs = due - now;
+  if (totalMs > 0 && remainingMs < totalMs * 0.25) return 'at_risk';
+  return 'ok';
+}
