@@ -1,11 +1,9 @@
 // js/components/card.js — HTML for a single Kanban card (docs/06-ui-spec.md §3-4).
 //
-// NOTE (spec deviation, intentional): public/mockup.html also renders an
-// experimental "เลขโครงการ" (projectCode) line with its own validation regex.
-// That field does not exist in docs/03-database.md's `cards` table, nor in
-// docs/04-api.md's card shape, nor in docs/06-ui-spec.md's card/form spec —
-// so per the "implement exactly to the documented contract" rule it is
-// intentionally NOT rendered here.
+// `projectCode` ("เลขโครงการ", format E<YY>-NNNN, optional/nullable) is a
+// documented field (docs/03-database.md `cards.project_code`, docs/04-api.md
+// §2/§4 `card.projectCode`, docs/06-ui-spec.md §4) — rendered with a 🗂 icon
+// right after the device line, shown only when present, same as site/deviceRef.
 
 export function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -61,6 +59,7 @@ export function cardHTML(card) {
     <div class="font-medium text-slate-800 pl-2 mb-1 leading-snug">${esc(card.title)}</div>
     ${card.site || card.customer ? `<div class="text-[11px] text-slate-500 pl-2">📍 ${esc(card.site || '')}${card.site && card.customer ? ' · ' : ''}${esc(card.customer || '')}</div>` : ''}
     ${card.deviceRef ? `<div class="text-[11px] text-slate-500 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
+    ${card.projectCode ? `<div class="text-[11px] text-slate-500 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}
     <div class="text-[11px] text-slate-600 pl-2 mt-1 flex items-center gap-1">✍️ ผู้สร้าง: <span class="font-medium">${esc(card.creator?.name || '—')}</span></div>
     ${prog.total > 0 ? `
       <div class="pl-2 mt-2">
