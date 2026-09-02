@@ -5,7 +5,6 @@
 
 import { store } from './store.js';
 import { api } from './api.js';
-import { toast } from './components/toast.js';
 import { mountBoard } from './views/board.view.js';
 import { mountMyTasks } from './views/mytasks.view.js';
 import { mountMembers } from './views/members.view.js';
@@ -94,21 +93,6 @@ function bindShellEvents() {
     store.setMe(this.value);
   });
 
-  document.getElementById('addMemberBtn')?.addEventListener('click', async () => {
-    const name = window.prompt('ชื่อสมาชิกใหม่:');
-    if (!name || !name.trim()) return;
-    try {
-      const member = await api.post('/members', { name: name.trim() });
-      store.upsertMemberLocal(member);
-      populateMemberSelect();
-      const sel = document.getElementById('meSelect');
-      if (sel) sel.value = member.name;
-      store.setMe(member.name);
-    } catch (err) {
-      toast.show(`เพิ่มสมาชิกไม่สำเร็จ: ${err.message}`);
-    }
-  });
-
   document.getElementById('createCardBtn')?.addEventListener('click', () => {
     openCreateModal();
   });
@@ -173,8 +157,7 @@ async function boot() {
   renderRoute();
   try {
     const data = await api.get('/bootstrap');
-    store.setBootstrap(data);
-    populateMemberSelect();
+    store.setBootstrap(data); // triggers populateMemberSelect via the store.subscribe in init()
   } catch (err) {
     store.setStatus('error', err);
   }
@@ -187,6 +170,10 @@ function init() {
   initTextSize();
   updateTextSizeToggleState();
   bindShellEvents();
+  // Member management (add/edit/deactivate/delete) now lives entirely on
+  // #/members, not the header — this keeps "ฉันคือ" in sync with it without
+  // members.view.js needing to know the header select even exists.
+  store.subscribe(populateMemberSelect);
   if (!location.hash) location.hash = DEFAULT_ROUTE;
   boot();
 }

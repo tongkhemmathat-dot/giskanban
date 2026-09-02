@@ -17,7 +17,20 @@ function isDoneListId(listId) {
 }
 
 export function mountMembers(root) {
-  const state = { editingId: null };
+  const state = { editingId: null, creating: false };
+
+  function createRowHTML() {
+    return `
+    <tr class="border-b border-slate-50 dark:border-slate-700">
+      <td colspan="4" class="px-4 py-2">
+        <form data-create-member-form class="flex flex-wrap items-center gap-2">
+          <input data-field="name" required maxlength="100" placeholder="ชื่อสมาชิกใหม่" autofocus class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1 w-52">
+          <button type="button" data-cancel-create class="text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">ยกเลิก</button>
+          <button type="submit" class="text-xs px-3 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">เพิ่ม</button>
+        </form>
+      </td>
+    </tr>`;
+  }
 
   function editRowHTML(m) {
     return `
@@ -65,6 +78,10 @@ export function mountMembers(root) {
 
   function render() {
     root.innerHTML = `
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-semibold dark:text-slate-100">สมาชิก</h2>
+      ${!state.creating ? '<button type="button" data-open-create class="bg-indigo-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-indigo-700">+ เพิ่มสมาชิกใหม่</button>' : ''}
+    </div>
     <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
@@ -72,7 +89,10 @@ export function mountMembers(root) {
             <th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th><th></th>
           </tr>
         </thead>
-        <tbody>${store.state.members.map(rowHTML).join('')}</tbody>
+        <tbody>
+          ${state.creating ? createRowHTML() : ''}
+          ${store.state.members.map(rowHTML).join('')}
+        </tbody>
       </table>
     </div>`;
     bind();
@@ -85,6 +105,19 @@ export function mountMembers(root) {
       color: form.querySelector('[data-field="color"]').value,
       isActive: form.querySelector('[data-field="isActive"]').checked,
     };
+  }
+
+  async function handleCreate(form) {
+    const name = form.querySelector('[data-field="name"]').value.trim();
+    if (!name) return toast.show('กรุณากรอกชื่อสมาชิก');
+    try {
+      const member = await api.post('/members', { name });
+      state.creating = false;
+      store.upsertMemberLocal(member);
+      toast.show(`เพิ่มสมาชิก "${member.name}" แล้ว`);
+    } catch (err) {
+      toast.show(`เพิ่มสมาชิกไม่สำเร็จ: ${err.message}`);
+    }
   }
 
   async function handleUpdate(id, form) {
@@ -125,6 +158,21 @@ export function mountMembers(root) {
   }
 
   function bind() {
+    root.querySelector('[data-open-create]')?.addEventListener('click', () => {
+      state.creating = true;
+      render();
+    });
+
+    root.querySelector('[data-cancel-create]')?.addEventListener('click', () => {
+      state.creating = false;
+      render();
+    });
+
+    root.querySelector('[data-create-member-form]')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleCreate(e.target);
+    });
+
     root.querySelectorAll('[data-edit-member]').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.editingId = Number(btn.closest('[data-member-id]').dataset.memberId);
