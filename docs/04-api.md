@@ -130,13 +130,15 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 ```json
 {
   "items": [
-    { "id": 51, "title": "ทำ backup", "isDone": false, "position": 65536, "assignee": null, "dueDate": null, "note": null, "doneBy": null, "doneAt": null }
+    { "id": 51, "title": "ทำ backup", "isDone": false, "position": 65536, "assignee": null, "dueDate": null, "isOverdue": false, "note": null, "doneBy": null, "doneAt": null }
   ],
   "progress": { "done": 0, "total": 3, "pct": 0 }
 }
 ```
 
-> `items` ใช้โครงเดียวกับ `subtasks[]` ใน `GET /api/cards/:id` เสมอ (id, title, isDone, position, assignee, dueDate, note, doneBy, doneAt) — endpoint อื่นของ subtask (toggle/reorder/apply-template) ก็คืนโครงนี้เช่นกัน
+> `items` ใช้โครงเดียวกับ `subtasks[]` ใน `GET /api/cards/:id` เสมอ (id, title, isDone, position, assignee, dueDate, isOverdue, note, doneBy, doneAt) — endpoint อื่นของ subtask (toggle/reorder/apply-template) ก็คืนโครงนี้เช่นกัน
+>
+> `isOverdue` คำนวณที่ server ทุกครั้งที่อ่าน (`dueDate` เลยเวลาปัจจุบัน และ `isDone` = false) — ติ๊กเสร็จหรือลบ `dueDate` ออก ค่าจะกลับเป็น `false` ทันที
 
 ### endpoint อื่น ๆ ของ Subtask
 
@@ -152,7 +154,7 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 
 ```json
 {
-  "subtask": { "id": 51, "isDone": 1, "doneBy": "ณัฐพล ว.", "doneAt": "2026-09-01T10:22:00" },
+  "subtask": { "id": 51, "isDone": 1, "isOverdue": false, "doneBy": "ณัฐพล ว.", "doneAt": "2026-09-01T10:22:00" },
   "progress": { "done": 1, "total": 11, "pct": 9 },
   "card": { "id": 130, "listId": 3 },
   "movedTo": { "listId": 3, "listName": "In Progress", "reason": "first_subtask_done" }

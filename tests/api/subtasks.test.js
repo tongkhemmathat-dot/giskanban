@@ -131,4 +131,39 @@ describe('Subtasks API', () => {
       expect(c.progress).toEqual(expect.objectContaining({ done: expect.any(Number), total: expect.any(Number), pct: expect.any(Number) }));
     }
   });
+
+  it('S9: a subtask with no dueDate is never isOverdue', async () => {
+    const card = await createCard();
+    const created = await request(app).post(`/api/cards/${card.id}/subtasks`).send({ titles: ['ขั้นแรก'] });
+    expect(created.body.items[0].isOverdue).toBe(false);
+  });
+
+  it('S10: a future dueDate is not isOverdue', async () => {
+    const card = await createCard();
+    const created = await request(app).post(`/api/cards/${card.id}/subtasks`).send({ titles: ['ขั้นแรก'] });
+    const sid = created.body.items[0].id;
+
+    const res = await request(app).patch(`/api/subtasks/${sid}`).send({ dueDate: '2099-01-01T00:00' });
+    expect(res.body.isOverdue).toBe(false);
+  });
+
+  it('S11: a past dueDate on an unfinished subtask is isOverdue', async () => {
+    const card = await createCard();
+    const created = await request(app).post(`/api/cards/${card.id}/subtasks`).send({ titles: ['ขั้นแรก'] });
+    const sid = created.body.items[0].id;
+
+    const res = await request(app).patch(`/api/subtasks/${sid}`).send({ dueDate: '2020-01-01T00:00' });
+    expect(res.body.isOverdue).toBe(true);
+  });
+
+  it('S12: marking an overdue subtask done clears isOverdue', async () => {
+    const card = await createCard();
+    const created = await request(app).post(`/api/cards/${card.id}/subtasks`).send({ titles: ['ขั้นแรก'] });
+    const sid = created.body.items[0].id;
+    await request(app).patch(`/api/subtasks/${sid}`).send({ dueDate: '2020-01-01T00:00' });
+
+    const res = await request(app).patch(`/api/subtasks/${sid}/toggle`).send({ actorName: 'ณัฐพล ว.' });
+    expect(res.body.subtask.isDone).toBe(true);
+    expect(res.body.subtask.isOverdue).toBe(false);
+  });
 });

@@ -118,7 +118,7 @@
 
 - แจ้งเตือน Line Notify เมื่องานใกล้ชน SLA — ⚠️ Line Notify ถูกยกเลิกโดย LINE (มี.ค. 2025) ต้องเลือกช่องทางอื่นแทน (email / Slack-Discord webhook) ถ้ายังต้องการ
 - [x] Export CSV — `GET /api/cards/export` (รองรับ filter เดียวกับ `GET /api/cards`) + ปุ่มใน header · "รายงานรายเดือน" แยกไม่ได้ทำ (ไม่มี concept ชัดเจนนอกเหนือจาก Dashboard ที่มีอยู่แล้ว)
-- กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด
+- [x] กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด — `subtasks.isOverdue` คำนวณที่ server (`parseAsUtc`, `server/utils/sla.js`), ตั้งค่า/แก้ไขได้ใน card-modal ตอน hover แถวขั้นตอน
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
 - ใบงานประจำ (recurring) สำหรับงาน PM
 - [x] Dark mode — toggle ใน header, จำค่าไว้ (`localStorage jc_theme`), ตาม system preference เป็นค่าเริ่มต้น

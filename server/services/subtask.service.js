@@ -13,6 +13,7 @@ import db from '../db/connection.js';
 import { AppError } from '../utils/AppError.js';
 import { midPosition } from '../utils/position.js';
 import { toApiDateTime, nowSqlite } from '../utils/date.js';
+import { parseAsUtc } from '../utils/sla.js';
 import { findOrCreateMemberByName } from './member.service.js';
 import { logActivity } from './activity.service.js';
 
@@ -30,6 +31,12 @@ function fetchSubtaskRow(sid) {
   return db.prepare(`${SUBTASK_SELECT} WHERE s.id = ?`).get(sid);
 }
 
+// isOverdue (backlog: per-subtask due dates + warning) — past its due_date
+// and not yet done. Computed from the raw row's due_date, not the already
+// toApiDateTime()-truncated one, since that's only a display reformat and
+// parseAsUtc() (server/utils/sla.js) needs the original string to correctly
+// handle both the ' '-separated (SQLite) and 'T'-separated (client-sent ISO)
+// shapes this codebase mixes.
 function mapSubtaskRow(row) {
   return {
     id: row.id,
@@ -40,6 +47,7 @@ function mapSubtaskRow(row) {
       ? { id: row.assignee_member_id, name: row.assignee_name, color: row.assignee_color }
       : null,
     dueDate: toApiDateTime(row.due_date),
+    isOverdue: !!row.due_date && !row.is_done && parseAsUtc(row.due_date).getTime() < Date.now(),
     note: row.note,
     doneBy: row.done_by,
     doneAt: toApiDateTime(row.done_at),

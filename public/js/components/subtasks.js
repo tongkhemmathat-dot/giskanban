@@ -14,13 +14,21 @@ function subtaskRowHTML(s) {
     : s.assignee
       ? `<span class="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">${esc(s.assignee.name)}</span>`
       : '';
+  // Always visible (not hover-only) when overdue — same reasoning as
+  // card.js's slaChipHTML: actionable status the user needs to see without
+  // hovering. isOverdue is server-computed (server/services/subtask.service.js).
+  const overdueBadge = s.isOverdue
+    ? `<span class="text-[11px] text-rose-600 dark:text-rose-400 shrink-0" title="เลยกำหนด ${esc(s.dueDate || '')}">⏰</span>`
+    : '';
   return `
   <div class="subtask-row flex items-center gap-2 py-1.5 group" data-sub-id="${s.id}">
     <span class="cursor-grab text-slate-300 dark:text-slate-600 handle" aria-hidden="true">⠿</span>
     <input type="checkbox" ${s.isDone ? 'checked' : ''} data-toggle class="w-4 h-4 accent-indigo-600 shrink-0" aria-label="ติ๊กเสร็จ ${esc(s.title)}">
     <span class="flex-1 text-sm ${s.isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'dark:text-slate-200'}" data-edit-title>${esc(s.title)}</span>
+    ${overdueBadge}
     ${trailing}
     <div class="subtask-actions opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0">
+      <input type="datetime-local" data-due-date value="${s.dueDate || ''}" class="text-[10px] border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1 py-0.5 w-32" aria-label="กำหนดเสร็จของขั้นตอน ${esc(s.title)}" title="กำหนดเสร็จ">
       <button type="button" data-delete class="text-slate-400 dark:text-slate-500 hover:text-rose-500 text-xs" aria-label="ลบขั้นตอน ${esc(s.title)}">🗑</button>
     </div>
   </div>`;
@@ -175,6 +183,17 @@ export function mountSubtasksBlock(container, { cardId, subtasks, progress, temp
     });
   }
 
+  async function setDueDate(sid, dueDate) {
+    try {
+      const updated = await api.patch(`/subtasks/${sid}`, { dueDate });
+      state.subtasks = state.subtasks.map((s) => (s.id === sid ? updated : s));
+      render();
+    } catch (err) {
+      toast.show(`ตั้งกำหนดเสร็จไม่สำเร็จ: ${err.message}`);
+      render(); // revert the input to the last known-good value
+    }
+  }
+
   async function remove(sid) {
     try {
       const res = await api.del(`/subtasks/${sid}`);
@@ -233,6 +252,9 @@ export function mountSubtasksBlock(container, { cardId, subtasks, progress, temp
     });
     container.querySelectorAll('[data-delete]').forEach((el) => {
       el.addEventListener('click', () => remove(Number(el.closest('[data-sub-id]').dataset.subId)));
+    });
+    container.querySelectorAll('[data-due-date]').forEach((el) => {
+      el.addEventListener('change', () => setDueDate(Number(el.closest('[data-sub-id]').dataset.subId), el.value || null));
     });
     initSortable();
   }

@@ -14,7 +14,13 @@ export const SLA_HOURS = {
 // UTC, zero-padded, non-offset format — and any input string with no explicit
 // offset is *assumed* to already be UTC (matching how it was written by SQLite),
 // regardless of the server's TZ env var (which only affects display).
-function parseAsUtc(input) {
+// Exported so subtask.service.js can reuse this exact same UTC-naive-string
+// convention for isOverdue (backlog: per-subtask due dates) — string-based
+// date comparisons break across the ' ' vs 'T' separator formats this
+// codebase mixes (SQLite's nowSqlite() vs client-sent ISO strings), so the
+// only safe way to compare two naive datetime strings is parsing them both
+// through the same rule.
+export function parseAsUtc(input) {
   if (input instanceof Date) return input;
   let s = String(input).trim().replace(' ', 'T');
   if (!/[zZ]|[+-]\d\d:?\d\d$/.test(s)) {
