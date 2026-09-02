@@ -27,7 +27,30 @@
   // Play CDN has no config file — this is its documented way to opt into
   // class-based dark mode (toggled via the `dark` class on <html> above)
   // instead of the default media-query-only strategy.
-  tailwind.config = { darkMode: 'class' };
+  //
+  // theme.extend.colors.indigo: every component file uses `indigo-*` as the
+  // one brand/accent color (buttons, active nav, links, focus rings,
+  // progress bars) — overriding the scale here re-hues the entire app to a
+  // "control room" teal (fits a NOC monitoring tool; distinct from the
+  // generic indigo-600 SaaS default) without editing any of those files.
+  // Values are Tailwind's own published teal-50..950 steps, so contrast and
+  // step spacing stay exactly as validated. Rose/orange/amber/emerald status
+  // colors (SLA + priority) are untouched — they carry real domain meaning
+  // (overdue/at-risk/ok) and must stay recognizable independent of the brand
+  // accent.
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          indigo: {
+            50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf',
+            500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a', 950: '#042f2e',
+          },
+        },
+      },
+    },
+  };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

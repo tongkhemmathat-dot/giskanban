@@ -26,7 +26,7 @@ export const PRIORITY_META = {
 export function avatarHTML(person, size = 'w-6 h-6 text-[10px]') {
   if (!person) return '';
   const initials = (person.short || person.name || '').slice(0, 2);
-  const color = person.color || '#6366f1';
+  const color = person.color || '#0d9488';
   return `<div class="${size} rounded-full flex items-center justify-center text-white font-medium shrink-0" style="background:${esc(color)}" title="${esc(person.name || '')}">${esc(initials)}</div>`;
 }
 

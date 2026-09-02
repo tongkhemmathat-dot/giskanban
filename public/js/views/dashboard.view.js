@@ -111,7 +111,7 @@ function initCharts(root) {
 
   chartWorkload = new Chart(wCtx, {
     type: 'bar',
-    data: { labels: members.map((m) => m.name), datasets: [{ data: workload, backgroundColor: '#6366f1', borderRadius: 4 }] },
+    data: { labels: members.map((m) => m.name), datasets: [{ data: workload, backgroundColor: '#0d9488', borderRadius: 4 }] },
     options: {
       plugins: { legend: { display: false } },
       scales: {
