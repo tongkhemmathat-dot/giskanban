@@ -23,7 +23,7 @@ export const PRIORITY_META = {
   low: { label: 'Low', dot: 'bg-slate-400' },
 };
 
-function avatarHTML(person, size = 'w-6 h-6 text-[10px]') {
+export function avatarHTML(person, size = 'w-6 h-6 text-[10px]') {
   if (!person) return '';
   const initials = (person.short || person.name || '').slice(0, 2);
   const color = person.color || '#6366f1';

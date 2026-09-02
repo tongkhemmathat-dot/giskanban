@@ -31,6 +31,7 @@ const state = {
   templates: [],
   cards: [],
   me: readMe(),
+  searchQuery: '',
 };
 
 function readMe() {
@@ -122,6 +123,35 @@ function upsertMemberLocal(member) {
   emit();
 }
 
+function addCardLocal(card) {
+  if (!card) return;
+  state.cards.push(card);
+  emit();
+}
+
+// Shallow-merges `patch` onto the existing card (card-modal edits, assignee
+// add/remove, subtask progress/counts after a toggle/add/delete) — every
+// mutation-response handler routes through this instead of hand-rolling array
+// surgery, same reasoning as moveCardLocal() above.
+function updateCardLocal(id, patch) {
+  const idx = state.cards.findIndex((c) => c.id === id);
+  if (idx < 0) return;
+  state.cards[idx] = { ...state.cards[idx], ...patch };
+  emit();
+}
+
+function removeCardLocal(id) {
+  const idx = state.cards.findIndex((c) => c.id === id);
+  if (idx < 0) return;
+  state.cards.splice(idx, 1);
+  emit();
+}
+
+function setSearchQuery(q) {
+  state.searchQuery = (q || '').trim();
+  emit();
+}
+
 export const store = {
   state,
   subscribe,
@@ -132,4 +162,8 @@ export const store = {
   getList,
   moveCardLocal,
   upsertMemberLocal,
+  addCardLocal,
+  updateCardLocal,
+  removeCardLocal,
+  setSearchQuery,
 };

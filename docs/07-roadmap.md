@@ -80,11 +80,11 @@
 - [x] **4.4** `board.view.js` + `components/card.js` + progress bar
 - [x] **4.5** Drag & drop (Sortable) → ยิง `/move` + optimistic update
       *AC:* API fail → การ์ดเด้งกลับที่เดิม + toast แจ้ง error
-- [ ] **4.6** `create-modal.js` — ช่องผู้สร้าง (บังคับ) + textarea ขั้นตอน + แม่แบบ
-- [ ] **4.7** `card-modal.js` 2 คอลัมน์ครบทุกส่วน
-- [ ] **4.8** `components/subtasks.js` — เพิ่ม/ติ๊ก/แก้/ลบ/ลาก/แม่แบบ
+- [x] **4.6** `create-modal.js` — ช่องผู้สร้าง (บังคับ) + textarea ขั้นตอน + แม่แบบ
+- [x] **4.7** `card-modal.js` 2 คอลัมน์ครบทุกส่วน
+- [x] **4.8** `components/subtasks.js` — เพิ่ม/ติ๊ก/แก้/ลบ/ลาก/แม่แบบ
       *AC:* วาง 3 บรรทัดพร้อมกันได้ 3 ขั้นตอนใน 1 คลิก
-- [ ] **4.9** ค้นหา + กรอง (client-side debounce 250ms)
+- [x] **4.9** ค้นหา + กรอง (client-side debounce 250ms)
 - [ ] **4.10** `mytasks.view.js` — งานที่ฉันสร้าง + ที่ฉันรับผิดชอบ
 - [ ] **4.11** `members.view.js` — รายชื่อ + สถิติสร้าง/ค้าง
 - [ ] **4.12** `dashboard.view.js` — KPI + 2 กราฟ + ตารางงานเสี่ยง

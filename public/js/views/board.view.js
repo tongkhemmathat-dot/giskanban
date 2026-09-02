@@ -11,13 +11,26 @@ import { store, midPosition } from '../store.js';
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { cardHTML, esc } from '../components/card.js';
+import { openCreateModal } from '../components/create-modal.js';
+import { openCardModal } from '../components/card-modal.js';
 
 let wasDragged = false;
 let sortableInstances = [];
 
+// docs/06-ui-spec.md §1's single search box covers title/site/device/code/creator
+// (docs/07-roadmap.md 4.9) — no separate filter dropdowns are specified.
+function matchesSearch(card, query) {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return [card.title, card.site, card.deviceRef, card.code, card.creator?.name]
+    .filter(Boolean)
+    .some((v) => String(v).toLowerCase().includes(needle));
+}
+
 function cardsForList(listId) {
+  const query = store.state.searchQuery;
   return store.state.cards
-    .filter((c) => c.listId === listId)
+    .filter((c) => c.listId === listId && matchesSearch(c, query))
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
@@ -113,8 +126,7 @@ async function handleDrop(evt) {
 function onBoardClick(e) {
   const addBtn = e.target.closest('.add-card-btn');
   if (addBtn) {
-    // create-modal.js is out of scope for this stage (Agent 5 builds it).
-    toast.show('ฟังก์ชันสร้างใบงานยังไม่พร้อมใช้งาน — รอเชื่อมต่อ create-modal');
+    openCreateModal(Number(addBtn.dataset.addListId));
     return;
   }
   const cardEl = e.target.closest('.card-item');
@@ -123,8 +135,7 @@ function onBoardClick(e) {
       wasDragged = false;
       return;
     }
-    // card-modal.js is out of scope for this stage (Agent 5 builds it).
-    toast.show('รายละเอียดใบงานยังไม่พร้อมใช้งาน — รอเชื่อมต่อ card-modal');
+    openCardModal(Number(cardEl.dataset.cardId));
   }
 }
 

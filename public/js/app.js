@@ -7,6 +7,7 @@ import { store } from './store.js';
 import { api } from './api.js';
 import { toast } from './components/toast.js';
 import { mountBoard } from './views/board.view.js';
+import { openCreateModal } from './components/create-modal.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -110,8 +111,14 @@ function bindShellEvents() {
   });
 
   document.getElementById('createCardBtn')?.addEventListener('click', () => {
-    // create-modal.js is out of scope for this stage (Agent 5 builds it).
-    toast.show('ฟังก์ชันสร้างใบงานยังไม่พร้อมใช้งาน — รอเชื่อมต่อ create-modal');
+    openCreateModal();
+  });
+
+  let searchDebounce;
+  document.getElementById('searchInput')?.addEventListener('input', function onSearchInput() {
+    clearTimeout(searchDebounce);
+    const value = this.value;
+    searchDebounce = setTimeout(() => store.setSearchQuery(value), 250);
   });
 
   window.addEventListener('hashchange', renderRoute);
