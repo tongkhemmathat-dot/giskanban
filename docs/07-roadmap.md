@@ -116,7 +116,7 @@
 
 ## ทำทีหลัง (Backlog)
 
-- แจ้งเตือน Line Notify เมื่องานใกล้ชน SLA — ⚠️ Line Notify ถูกยกเลิกโดย LINE (มี.ค. 2025) ต้องเลือกช่องทางอื่นแทน (email / Slack-Discord webhook) ถ้ายังต้องการ
+- [x] แจ้งเตือนเมื่องานใกล้ชน SLA — Line Notify ถูกยกเลิกโดย LINE (มี.ค. 2025) เปลี่ยนเป็นอีเมลสรุปรายวัน 1 ฉบับ/วัน (`server/services/notify.service.js`, ตั้งค่าใน `.env`: `NOTIFY_ENABLED`/`NOTIFY_HOUR`/`NOTIFY_EMAIL_TO`/`SMTP_*`) ทำงานเฉพาะ process ที่รันค้างไว้ (Docker) ไม่ใช่ demo แบบ serverless
 - [x] Export CSV — `GET /api/cards/export` (รองรับ filter เดียวกับ `GET /api/cards`) + ปุ่มใน header · "รายงานรายเดือน" แยกไม่ได้ทำ (ไม่มี concept ชัดเจนนอกเหนือจาก Dashboard ที่มีอยู่แล้ว)
 - [x] กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด — `subtasks.isOverdue` คำนวณที่ server (`parseAsUtc`, `server/utils/sla.js`), ตั้งค่า/แก้ไขได้ใน card-modal ตอน hover แถวขั้นตอน
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)

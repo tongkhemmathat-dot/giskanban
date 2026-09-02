@@ -18,6 +18,7 @@ import attachmentsRouter from './routes/attachments.routes.js';
 import timelogsRouter from './routes/timelogs.routes.js';
 import labelsRouter from './routes/labels.routes.js';
 import reportsRouter from './routes/reports.routes.js';
+import { sendSlaDigest } from './services/notify.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -78,6 +79,25 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   app.listen(port, () => {
     console.warn(`JobCard Pro API listening on :${port}`);
   });
+
+  // SLA-risk email digest (backlog: replaces the discontinued LINE Notify).
+  // Off by default (NOTIFY_ENABLED) since it needs real SMTP creds — checks
+  // once/minute and fires at most once per calendar day at NOTIFY_HOUR. Only
+  // meaningful under a persistent process (Docker), not the stateless Vercel
+  // demo deploy, which is why this lives here and not in a serverless route.
+  if (process.env.NOTIFY_ENABLED === 'true') {
+    const notifyHour = Number(process.env.NOTIFY_HOUR ?? 8);
+    let lastSentDate = null;
+    setInterval(() => {
+      const now = new Date();
+      const today = now.toDateString();
+      if (now.getHours() !== notifyHour || lastSentDate === today) return;
+      lastSentDate = today;
+      sendSlaDigest()
+        .then(({ sentCount }) => console.warn(`SLA digest sent (${sentCount} รายการ)`))
+        .catch((err) => console.error('ส่ง SLA digest ไม่สำเร็จ:', err));
+    }, 60_000);
+  }
 }
 
 export default app;

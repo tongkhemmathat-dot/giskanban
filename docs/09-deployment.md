@@ -14,9 +14,22 @@ TZ=Asia/Bangkok
 # สำหรับ Caddy
 DOMAIN=jobcard.company.local
 TEAM_PASSWORD_HASH=      # สร้างด้วย: docker run --rm caddy caddy hash-password
+
+# แจ้งเตือนงานใกล้ชน SLA ทางอีเมล (แทน LINE Notify ที่ถูกยกเลิก) — ไม่บังคับ
+NOTIFY_ENABLED=false
+NOTIFY_HOUR=8             # ส่งสรุป 1 ครั้ง/วัน เวลานี้ (24 ชม., ตาม TZ ด้านบน)
+NOTIFY_EMAIL_TO=noc-team@company.local
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=jobcard-pro@company.local
 ```
 
 > ❗ ไม่มี `JWT_SECRET` / `ADMIN_*` โดยเจตนา — ระบบนี้ไม่มี auth ในแอป
+> อีเมลสรุป SLA (`NOTIFY_*`/`SMTP_*`) ทำงานเฉพาะภายใต้ process ที่รันค้างไว้
+> (เช่น Docker Compose ด้านล่างนี้) — ใช้ไม่ได้บน demo แบบ serverless (Vercel)
 
 ## 2. `Dockerfile`
 
