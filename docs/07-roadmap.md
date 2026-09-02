@@ -55,20 +55,20 @@
 
 ## Phase 3 — ขั้นตอนย่อย ★
 
-- [ ] **3.1** `POST /api/cards/:id/subtasks` รับ `titles[]` แบบ bulk
+- [x] **3.1** `POST /api/cards/:id/subtasks` รับ `titles[]` แบบ bulk
       *AC:* `['1. ทำ backup','- ทดสอบ','','3) แจ้งผล']` → 3 แถว ไม่มีเลข/ขีดนำหน้า
-- [ ] **3.2** `PATCH /api/subtasks/:sid` (title, assignee, dueDate, note)
-- [ ] **3.3** `PATCH /api/subtasks/:sid/toggle` เขียน `done_by` + `done_at`
+- [x] **3.2** `PATCH /api/subtasks/:sid` (title, assignee, dueDate, note)
+- [x] **3.3** `PATCH /api/subtasks/:sid/toggle` เขียน `done_by` + `done_at`
       *AC:* ติ๊กแล้ว query กลับมามีชื่อผู้ติ๊กและเวลา
-- [ ] **3.4** Auto-move ตาม `docs/05-business-rules.md` ข้อ 4.3
+- [x] **3.4** Auto-move ตาม `docs/05-business-rules.md` ข้อ 4.3
       *AC:* ติ๊กขั้นแรกขณะอยู่ To Do → `list_id` = In Progress + มี `movedTo` ใน response
       *AC:* ติ๊กครบทุกขั้น → คืน `reason: all_done_suggest_review` แต่ **ไม่ย้ายเอง**
-- [ ] **3.5** `DELETE /api/subtasks/:sid`
-- [ ] **3.6** `PATCH /api/cards/:id/subtasks/reorder`
+- [x] **3.5** `DELETE /api/subtasks/:sid`
+- [x] **3.6** `PATCH /api/cards/:id/subtasks/reorder`
       *AC:* ส่ง `[3,1,2]` → position เรียงตามนั้น
-- [ ] **3.7** `templates` CRUD + `POST .../apply-template`
+- [x] **3.7** `templates` CRUD + `POST .../apply-template`
       *AC:* ใช้แม่แบบกับการ์ดที่มี 2 ขั้นอยู่แล้ว → **ต่อท้าย** ไม่ลบของเดิม
-- [ ] **3.8** `progress` แนบไปกับ card ทุก response
+- [x] **3.8** `progress` แนบไปกับ card ทุก response
 
 ---
 

@@ -11,6 +11,8 @@ import { errorHandler } from './middleware/error.js';
 import bootstrapRouter from './routes/bootstrap.routes.js';
 import membersRouter from './routes/members.routes.js';
 import cardsRouter from './routes/cards.routes.js';
+import subtasksRouter from './routes/subtasks.routes.js';
+import templatesRouter from './routes/templates.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -42,6 +44,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/bootstrap', bootstrapRouter);
 app.use('/api/members', membersRouter);
 app.use('/api/cards', cardsRouter);
+app.use('/api', subtasksRouter); // spans /api/cards/:id/subtasks... and /api/subtasks/:sid...
+app.use('/api/templates', templatesRouter);
 
 app.use(express.static(PUBLIC_DIR));
 

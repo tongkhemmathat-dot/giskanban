@@ -2,6 +2,7 @@
 // docs/05-business-rules.md §7). Route files import these and pass them to
 // middleware/validate.js — no validation logic lives in the routes themselves.
 import { z } from 'zod';
+import { isoDateTimeSchema } from './common.schema.js';
 
 const TYPES = ['incident', 'service_request', 'change', 'maintenance'];
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
@@ -10,14 +11,7 @@ const SLA_STATUSES = ['ok', 'at_risk', 'overdue', 'done'];
 // 'E' + 2-digit year + '-' + 4 digits, e.g. E26-1234 (docs/05-business-rules.md §7).
 const PROJECT_CODE_RE = /^E\d{2}-\d{4}$/;
 
-// ISO 8601-ish, with or without seconds/offset, or an explicit null
-// (docs/05-business-rules.md §7: "ISO 8601 หรือ null"). Matches the
-// datetime-local shape used in docs/04-api.md's examples ("2026-09-06T22:00").
-const dueDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, 'dueDate ต้องเป็นรูปแบบ ISO 8601')
-  .nullable()
-  .optional();
+const dueDateSchema = isoDateTimeSchema;
 
 // POST /api/cards: projectCode is optional; '' / null / undefined all mean
 // "not provided" (-> undefined, field left out entirely). Anything else is

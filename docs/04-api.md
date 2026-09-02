@@ -129,10 +129,14 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 
 ```json
 {
-  "items": [{ "id": 51, "title": "ทำ backup", "isDone": 0, "position": 65536 }],
+  "items": [
+    { "id": 51, "title": "ทำ backup", "isDone": false, "position": 65536, "assignee": null, "dueDate": null, "note": null, "doneBy": null, "doneAt": null }
+  ],
   "progress": { "done": 0, "total": 3, "pct": 0 }
 }
 ```
+
+> `items` ใช้โครงเดียวกับ `subtasks[]` ใน `GET /api/cards/:id` เสมอ (id, title, isDone, position, assignee, dueDate, note, doneBy, doneAt) — endpoint อื่นของ subtask (toggle/reorder/apply-template) ก็คืนโครงนี้เช่นกัน
 
 ### endpoint อื่น ๆ ของ Subtask
 
@@ -164,10 +168,10 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 
 | Method | Path | Body |
 |---|---|---|
-| GET | `/api/templates` | – (คืน `items` เป็น array แล้ว) |
-| POST | `/api/templates` | `{ name, items: string[] }` |
+| GET | `/api/templates` | – คืน `{ items: [...] }`, แต่ละ template มี `items` เป็น array แล้ว (ไม่ใช่ JSON string) |
+| POST | `/api/templates` | `{ name, items: string[] }` → 201 `{ id, name, slug, items, itemCount }` — `slug` สร้างอัตโนมัติ (`tpl-xxxxxxxx`) |
 | PATCH | `/api/templates/:id` | `{ name?, items? }` |
-| DELETE | `/api/templates/:id` | – |
+| DELETE | `/api/templates/:id` | – 204 |
 
 ---
 

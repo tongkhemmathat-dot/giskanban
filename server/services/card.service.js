@@ -20,6 +20,7 @@ import { splitTitles } from '../utils/subtask.js';
 import { toApiDateTime, nowSqlite } from '../utils/date.js';
 import { findOrCreateMemberByName } from './member.service.js';
 import { logActivity, listActivities } from './activity.service.js';
+import { getCardProgress, listSubtasksForCard } from './subtask.service.js';
 
 const GAP = 65536;
 const CARD_FIELD_COLUMNS = {
@@ -57,42 +58,10 @@ function getCardLabels(cardId) {
     .all(cardId);
 }
 
-function getCardProgress(cardId) {
-  const row = db.prepare('SELECT total, done, pct FROM card_progress WHERE card_id = ?').get(cardId);
-  return row ? { done: row.done, total: row.total, pct: row.pct } : { done: 0, total: 0, pct: 0 };
-}
-
 function getCardCounts(cardId) {
   const comments = db.prepare('SELECT COUNT(*) AS n FROM comments WHERE card_id = ?').get(cardId).n;
   const attachments = db.prepare('SELECT COUNT(*) AS n FROM attachments WHERE card_id = ?').get(cardId).n;
   return { comments, attachments };
-}
-
-// Subtasks/comments/attachments/time-logs tables have no write endpoints yet
-// (Agent 3 / Agent 6) but may already contain seeded rows, so GET /api/cards/:id
-// queries and shapes them anyway — later agents build on top of this shape,
-// they don't need to invent it.
-function getSubtasks(cardId) {
-  return db
-    .prepare(
-      `SELECT s.*, m.id AS assignee_member_id, m.name AS assignee_name, m.color AS assignee_color
-       FROM subtasks s LEFT JOIN members m ON m.id = s.assignee_id
-       WHERE s.card_id = ? ORDER BY s.position`,
-    )
-    .all(cardId)
-    .map((s) => ({
-      id: s.id,
-      title: s.title,
-      isDone: !!s.is_done,
-      position: s.position,
-      assignee: s.assignee_member_id
-        ? { id: s.assignee_member_id, name: s.assignee_name, color: s.assignee_color }
-        : null,
-      dueDate: toApiDateTime(s.due_date),
-      note: s.note,
-      doneBy: s.done_by,
-      doneAt: toApiDateTime(s.done_at),
-    }));
 }
 
 function getComments(cardId) {
@@ -245,7 +214,7 @@ export function getCardById(id) {
   if (!row) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
 
   const card = mapCardRow(row);
-  card.subtasks = getSubtasks(id);
+  card.subtasks = listSubtasksForCard(id);
   card.comments = getComments(id);
   card.attachments = getAttachments(id);
   card.timeLogs = getTimeLogs(id);
