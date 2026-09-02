@@ -7,6 +7,9 @@ import { store } from './store.js';
 import { api } from './api.js';
 import { toast } from './components/toast.js';
 import { mountBoard } from './views/board.view.js';
+import { mountMyTasks } from './views/mytasks.view.js';
+import { mountMembers } from './views/members.view.js';
+import { mountDashboard } from './views/dashboard.view.js';
 import { openCreateModal } from './components/create-modal.js';
 
 function esc(s) {
@@ -27,15 +30,6 @@ function updateActiveNav(hash) {
   document.querySelectorAll('#sidebarNav .nav-link').forEach((a) => {
     a.classList.toggle('active', a.dataset.route === hash);
   });
-}
-
-function placeholderView(icon, title) {
-  return `
-  <div class="h-full flex flex-col items-center justify-center text-center gap-2 text-slate-500">
-    <div class="text-3xl">${esc(icon)}</div>
-    <div class="text-base font-medium text-slate-600">${esc(title)}</div>
-    <div class="text-sm">ส่วนนี้จะพร้อมใช้งานเร็ว ๆ นี้</div>
-  </div>`;
 }
 
 function renderLoading() {
@@ -73,11 +67,11 @@ function renderRoute() {
   if (hash === '#/board') {
     currentUnmount = mountBoard(mainEl);
   } else if (hash === '#/dashboard') {
-    mainEl.innerHTML = placeholderView('📊', 'Dashboard');
+    currentUnmount = mountDashboard(mainEl);
   } else if (hash === '#/mytasks') {
-    mainEl.innerHTML = placeholderView('✅', 'My Tasks');
+    currentUnmount = mountMyTasks(mainEl);
   } else if (hash === '#/members') {
-    mainEl.innerHTML = placeholderView('👥', 'Members');
+    currentUnmount = mountMembers(mainEl);
   }
 }
 
