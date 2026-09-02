@@ -20,6 +20,14 @@ r.get('/', validate(listCardsQuerySchema, 'query'), (req, res) => {
   res.json({ items: svc.listCards(req.query) });
 });
 
+// Registered before GET /:id so "export" can never be mistaken for an id.
+r.get('/export', validate(listCardsQuerySchema, 'query'), (req, res) => {
+  const csv = svc.exportCardsCsv(req.query);
+  const date = new Date().toISOString().slice(0, 10);
+  res.attachment(`jobcard-export-${date}.csv`);
+  res.type('text/csv; charset=utf-8').send(csv);
+});
+
 r.get('/:id', validate(idParamSchema, 'params'), (req, res) => {
   res.json(svc.getCardById(req.params.id));
 });

@@ -25,6 +25,7 @@ import { listComments } from './comment.service.js';
 import { listAttachments } from './attachment.service.js';
 import { listTimeLogs } from './timelog.service.js';
 import { listLabelsForCard } from './label.service.js';
+import { buildCsv } from '../utils/csv.js';
 
 const GAP = 65536;
 const CARD_FIELD_COLUMNS = {
@@ -150,6 +151,60 @@ export function listCards(filters = {}) {
   }
 
   return cards;
+}
+
+const CSV_HEADERS = [
+  'code',
+  'title',
+  'type',
+  'priority',
+  'list',
+  'slaStatus',
+  'creator',
+  'assignees',
+  'site',
+  'customer',
+  'deviceRef',
+  'projectCode',
+  'dueDate',
+  'slaDueAt',
+  'progress',
+  'labels',
+  'createdAt',
+  'completedAt',
+];
+
+// Export CSV (backlog: docs/07-roadmap.md) — reuses listCards() so the export
+// respects the exact same filters as GET /api/cards, and reflects the exact
+// same slaStatus/progress every other view already shows. UTF-8 BOM prefix
+// is required for Excel (the realistic consumer here, given every field is
+// Thai text) to auto-detect the encoding instead of rendering mojibake.
+export function exportCardsCsv(filters = {}) {
+  const cards = listCards(filters);
+  const listNames = new Map(db.prepare('SELECT id, name FROM lists').all().map((l) => [l.id, l.name]));
+
+  const rows = cards.map((c) => [
+    c.code,
+    c.title,
+    c.type,
+    c.priority,
+    listNames.get(c.listId) ?? '',
+    c.slaStatus,
+    c.creator?.name ?? '',
+    (c.assignees ?? []).map((a) => a.name).join('; '),
+    c.site ?? '',
+    c.customer ?? '',
+    c.deviceRef ?? '',
+    c.projectCode ?? '',
+    c.dueDate ?? '',
+    c.slaDueAt ?? '',
+    `${c.progress?.done ?? 0}/${c.progress?.total ?? 0}`,
+    (c.labels ?? []).map((l) => l.name).join('; '),
+    c.createdAt ?? '',
+    c.completedAt ?? '',
+  ]);
+
+  return '\uFEFF' + buildCsv(CSV_HEADERS, rows);
 }
 
 export function getCardById(id) {

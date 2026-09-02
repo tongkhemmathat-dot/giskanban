@@ -117,7 +117,7 @@
 ## ทำทีหลัง (Backlog)
 
 - แจ้งเตือน Line Notify เมื่องานใกล้ชน SLA — ⚠️ Line Notify ถูกยกเลิกโดย LINE (มี.ค. 2025) ต้องเลือกช่องทางอื่นแทน (email / Slack-Discord webhook) ถ้ายังต้องการ
-- Export CSV / รายงานรายเดือน
+- [x] Export CSV — `GET /api/cards/export` (รองรับ filter เดียวกับ `GET /api/cards`) + ปุ่มใน header · "รายงานรายเดือน" แยกไม่ได้ทำ (ไม่มี concept ชัดเจนนอกเหนือจาก Dashboard ที่มีอยู่แล้ว)
 - กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
 - ใบงานประจำ (recurring) สำหรับงาน PM
