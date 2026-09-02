@@ -28,8 +28,8 @@ function siteDatalistHTML() {
 
 function modalHTML() {
   return `
-  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-4" data-close-on-backdrop>
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5">
+  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-0 md:p-4" data-close-on-backdrop>
+    <div class="bg-white md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-lg md:max-h-[90vh] overflow-y-auto p-5">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">สร้างใบงานใหม่</h2>
         <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 text-lg leading-none" aria-label="ปิด">✕</button>

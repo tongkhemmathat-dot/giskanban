@@ -58,14 +58,16 @@ function bodyHTML() {
   </div>
   <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
     <div class="px-4 py-2 font-medium text-sm border-b border-slate-100">งานเกินกำหนด + ใกล้ครบ</div>
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-slate-500 text-xs border-b border-slate-100">
-          <th class="px-4 py-2">Code</th><th>งาน</th><th>ผู้สร้าง</th><th>ผู้รับผิดชอบ</th><th>ความคืบหน้า</th><th>กำหนด</th><th>สถานะ</th>
-        </tr>
-      </thead>
-      <tbody>${risky.map(riskyRowHTML).join('') || '<tr><td class="px-4 py-3 text-slate-400" colspan="7">ไม่มีงานเกินกำหนดหรือใกล้ครบ 🎉</td></tr>'}</tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 text-xs border-b border-slate-100">
+            <th class="px-4 py-2">Code</th><th>งาน</th><th>ผู้สร้าง</th><th>ผู้รับผิดชอบ</th><th>ความคืบหน้า</th><th>กำหนด</th><th>สถานะ</th>
+          </tr>
+        </thead>
+        <tbody>${risky.map(riskyRowHTML).join('') || '<tr><td class="px-4 py-3 text-slate-400" colspan="7">ไม่มีงานเกินกำหนดหรือใกล้ครบ 🎉</td></tr>'}</tbody>
+      </table>
+    </div>
   </div>`;
 }
 

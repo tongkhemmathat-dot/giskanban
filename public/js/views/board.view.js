@@ -39,8 +39,11 @@ function columnHTML(list) {
   const count = cards.length;
   const overLimit = Boolean(list.wipLimit) && count > list.wipLimit;
 
+  // Responsive column width per docs/06-ui-spec.md §10: mobile (<768px)
+  // near-viewport-width + scroll-snap so columns page one at a time,
+  // tablet (768-1279px) fixed 260px, desktop (>=1280px) the original 288px.
   return `
-  <div class="flex-shrink-0 w-72 bg-slate-200/60 rounded-xl flex flex-col max-h-full">
+  <div class="flex-shrink-0 w-[85vw] md:w-[260px] xl:w-72 snap-start bg-slate-200/60 rounded-xl flex flex-col max-h-full">
     <div class="px-3 py-2 flex items-center justify-between">
       <span class="font-semibold text-slate-700 text-sm">${esc(list.name)}</span>
       <span class="text-xs font-medium ${overLimit ? 'text-rose-600' : 'text-slate-500'}">${count}${list.wipLimit ? `/${list.wipLimit}` : ''}</span>
@@ -142,7 +145,7 @@ function onBoardClick(e) {
 /** Pure render of the board into `root`, driven only by store.state. */
 function renderBoard(root) {
   const lists = store.state.lists;
-  root.innerHTML = `<div class="flex gap-3 overflow-x-auto h-full pb-2">${lists.map(columnHTML).join('')}</div>`;
+  root.innerHTML = `<div class="flex gap-3 overflow-x-auto h-full pb-2 snap-x snap-mandatory md:snap-none">${lists.map(columnHTML).join('')}</div>`;
   initSortable(root);
 }
 

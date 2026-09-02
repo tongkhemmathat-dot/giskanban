@@ -61,8 +61,8 @@ function toggleAssigneeLabel(assignees) {
 function modalHTML(card) {
   const t = TYPE_META[card.type] || TYPE_META.service_request;
   return `
-  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-4" data-close-on-backdrop>
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+  <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-0 md:p-4" data-close-on-backdrop>
+    <div class="bg-white md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 sticky top-0 bg-white z-10">
         <div class="flex items-center gap-2">
           <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${esc(t.label)}</span>

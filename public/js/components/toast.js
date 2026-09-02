@@ -11,7 +11,7 @@ function ensureRoot() {
   if (!root) {
     root = document.createElement('div');
     root.id = 'toast-root';
-    root.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center';
+    root.className = 'fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center';
     document.body.appendChild(root);
   }
   return root;

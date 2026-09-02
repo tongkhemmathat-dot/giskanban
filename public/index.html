@@ -13,27 +13,33 @@
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="bg-slate-100 text-slate-800 text-sm">
-  <div id="app" class="flex" style="height:100vh">
-    <aside class="w-52 bg-white border-r border-slate-200 flex flex-col shrink-0">
-      <div class="px-4 py-4 font-semibold text-indigo-600 text-lg">📋 JobCard Pro</div>
-      <nav id="sidebarNav" class="flex-1 px-2 space-y-1">
-        <a href="#/board" data-route="#/board" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
-          <span>📋</span><span>Board</span>
+  <!-- Responsive per docs/06-ui-spec.md §10: >=1280px (xl:) full sidebar with
+       labels; 768-1279px (md:) sidebar collapses to icons-only, 260px board
+       columns; <768px (default, mobile-first) sidebar becomes a bottom nav
+       bar via flex order, board columns snap-scroll one at a time. -->
+  <div id="app" class="flex flex-col md:flex-row" style="height:100vh">
+    <aside class="order-2 md:order-1 w-full md:w-14 xl:w-52 h-14 md:h-auto bg-white border-t md:border-t-0 md:border-r border-slate-200 flex flex-row md:flex-col shrink-0">
+      <div class="hidden md:flex items-center justify-center xl:justify-start gap-2 px-2 xl:px-4 py-4 font-semibold text-indigo-600 text-lg">
+        <span>📋</span><span class="hidden xl:inline">JobCard Pro</span>
+      </div>
+      <nav id="sidebarNav" class="flex-1 flex flex-row md:flex-col items-center md:items-stretch justify-around md:justify-start px-2 md:space-y-1">
+        <a href="#/board" data-route="#/board" aria-label="Board" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+          <span>📋</span><span class="text-[10px] md:hidden xl:inline">Board</span>
         </a>
-        <a href="#/dashboard" data-route="#/dashboard" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
-          <span>📊</span><span>Dashboard</span>
+        <a href="#/dashboard" data-route="#/dashboard" aria-label="Dashboard" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+          <span>📊</span><span class="text-[10px] md:hidden xl:inline">Dashboard</span>
         </a>
-        <a href="#/mytasks" data-route="#/mytasks" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
-          <span>✅</span><span>My Tasks</span>
+        <a href="#/mytasks" data-route="#/mytasks" aria-label="My Tasks" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+          <span>✅</span><span class="text-[10px] md:hidden xl:inline">My Tasks</span>
         </a>
-        <a href="#/members" data-route="#/members" class="nav-link flex items-center gap-2 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
-          <span>👥</span><span>Members</span>
+        <a href="#/members" data-route="#/members" aria-label="Members" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+          <span>👥</span><span class="text-[10px] md:hidden xl:inline">Members</span>
         </a>
       </nav>
     </aside>
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="order-1 md:order-2 flex-1 flex flex-col overflow-hidden min-h-0">
       <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3 flex-wrap">
-        <input id="searchInput" aria-label="ค้นหา" placeholder="🔍 ค้นหา (ชื่องาน / site / device / code / ผู้สร้าง)" class="border border-slate-300 rounded-md text-sm px-3 py-1.5 w-72">
+        <input id="searchInput" aria-label="ค้นหา" placeholder="🔍 ค้นหา (ชื่องาน / site / device / code / ผู้สร้าง)" class="border border-slate-300 rounded-md text-sm px-3 py-1.5 w-40 md:w-72">
         <div class="flex-1"></div>
         <label class="text-xs text-slate-500" for="meSelect">ฉันคือ</label>
         <select id="meSelect" class="border border-slate-300 rounded-md text-sm px-2 py-1.5">
@@ -48,7 +54,7 @@
     </div>
   </div>
   <div id="modal-root"></div>
-  <div id="toast-root" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center"></div>
+  <div id="toast-root" class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center"></div>
 
   <script type="module" src="js/app.js"></script>
 </body>
