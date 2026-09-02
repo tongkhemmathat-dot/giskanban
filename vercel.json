@@ -1,0 +1,9 @@
+{
+  "installCommand": "npm install --ignore-scripts",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{public/**,server/db/migrations/**}"
+    }
+  }
+}

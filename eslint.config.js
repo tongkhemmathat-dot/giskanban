@@ -9,7 +9,7 @@ export default [
   js.configs.recommended,
   {
     // server + tooling + tests: Node.js ESM environment
-    files: ['server/**/*.js', 'tests/**/*.js', '*.config.js'],
+    files: ['server/**/*.js', 'tests/**/*.js', 'api/**/*.js', '*.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

@@ -35,6 +35,18 @@ npm run dev
 docker compose up -d --build
 ```
 
+### Deploy demo บน Vercel
+
+```bash
+npm i -g vercel   # ครั้งแรกครั้งเดียว
+vercel            # ล็อกอิน + เชื่อม repo นี้เป็นโปรเจกต์ใหม่ ทำตามคำถามที่ถาม
+vercel --prod     # deploy ขึ้น production URL (*.vercel.app)
+```
+
+หรือเข้า [vercel.com/new](https://vercel.com/new) แล้วเลือก import repo นี้จาก GitHub ก็ได้เหมือนกัน — ไม่ต้องตั้งค่าอะไรเพิ่ม (`vercel.json` มีครบแล้ว)
+
+⚠️ **นี่คือ demo เท่านั้น ไม่ใช่การ deploy จริง** — Vercel Functions ไม่มี disk ถาวร ระบบจะสร้างฐานข้อมูลใหม่ (seed data ชุดเดิม) ทุกครั้งที่ instance เย็นตัวลง (cold start) ข้อมูลที่สร้าง/แก้ระหว่าง session จะหายเมื่อ cold start รอบถัดไป และถ้ามีคนเข้าพร้อมกันหลาย session อาจเห็นข้อมูลไม่ตรงกัน (คนละ instance = คนละไฟล์ฐานข้อมูล) สำหรับใช้งานจริงให้ใช้ Docker Compose ด้านบน (`docs/09-deployment.md`) ซึ่งข้อมูล persist จริง
+
 ---
 
 ## โครงสร้างข้อมูล (ย่อ)
