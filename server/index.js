@@ -13,6 +13,9 @@ import membersRouter from './routes/members.routes.js';
 import cardsRouter from './routes/cards.routes.js';
 import subtasksRouter from './routes/subtasks.routes.js';
 import templatesRouter from './routes/templates.routes.js';
+import commentsRouter from './routes/comments.routes.js';
+import attachmentsRouter from './routes/attachments.routes.js';
+import timelogsRouter from './routes/timelogs.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -46,6 +49,9 @@ app.use('/api/members', membersRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api', subtasksRouter); // spans /api/cards/:id/subtasks... and /api/subtasks/:sid...
 app.use('/api/templates', templatesRouter);
+app.use('/api', commentsRouter); // spans /api/cards/:id/comments and /api/comments/:cid
+app.use('/api', attachmentsRouter); // spans /api/cards/:id/attachments and /api/attachments/:aid...
+app.use('/api', timelogsRouter); // spans /api/cards/:id/time-logs and /api/time-logs/:tid
 
 app.use(express.static(PUBLIC_DIR));
 

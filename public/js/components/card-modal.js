@@ -9,6 +9,9 @@ import { api } from '../api.js';
 import { toast } from './toast.js';
 import { esc, avatarHTML, TYPE_META, PRIORITY_META } from './card.js';
 import { mountSubtasksBlock } from './subtasks.js';
+import { mountCommentsBlock } from './comments.js';
+import { mountAttachmentsBlock } from './attachments.js';
+import { mountTimeLogsBlock } from './time-logs.js';
 
 const ACTIVITY_TEXT = {
   card_created: () => 'สร้างใบงาน',
@@ -73,14 +76,8 @@ function modalHTML(card) {
 
           <div class="mb-5" data-subtasks-root></div>
 
-          <div class="mb-5">
-            <div class="font-medium text-sm mb-2">💬 ความคิดเห็น</div>
-            <div class="text-xs text-slate-400">เปิดใช้งานใน Phase 5</div>
-          </div>
-          <div>
-            <div class="font-medium text-sm mb-2">📎 ไฟล์แนบ</div>
-            <div class="text-xs text-slate-400">เปิดใช้งานใน Phase 5</div>
-          </div>
+          <div class="mb-5" data-comments-root></div>
+          <div data-attachments-root></div>
         </div>
 
         <div class="bg-slate-50 p-5 md:w-1/3 space-y-4">
@@ -111,10 +108,7 @@ function modalHTML(card) {
             <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">ลูกค้า:</span><input data-field="customer" value="${esc(card.customer || '')}" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0"></div>
             <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">เลขโครงการ:</span><input data-field="projectCode" value="${esc(card.projectCode || '')}" placeholder="E26-1234" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0 uppercase"></div>
           </div>
-          <div>
-            <div class="text-xs text-slate-500 mb-1">⏱ บันทึกเวลา</div>
-            <div class="text-xs text-slate-400">เปิดใช้งานใน Phase 5</div>
-          </div>
+          <div data-timelogs-root></div>
           <div>
             <div class="text-xs text-slate-500 mb-1">📜 กิจกรรมล่าสุด</div>
             <div data-activities>${activitiesHTML(card.activities)}</div>
@@ -232,7 +226,7 @@ function bindEvents(root, card, close) {
   });
 }
 
-let subtasksHandle = null;
+let mountedHandles = [];
 let rootClickHandler = null;
 
 function onKeydown(e) {
@@ -240,8 +234,8 @@ function onKeydown(e) {
 }
 
 function closeCardModal() {
-  subtasksHandle?.destroy();
-  subtasksHandle = null;
+  mountedHandles.forEach((h) => h.destroy());
+  mountedHandles = [];
   const root = document.getElementById('modal-root');
   if (rootClickHandler) {
     root.removeEventListener('click', rootClickHandler);
@@ -268,10 +262,15 @@ export async function openCardModal(cardId) {
   bindEvents(root, card, closeCardModal);
   document.addEventListener('keydown', onKeydown);
 
-  subtasksHandle = mountSubtasksBlock(root.querySelector('[data-subtasks-root]'), {
-    cardId: card.id,
-    subtasks: card.subtasks,
-    progress: card.progress,
-    templates: store.state.templates,
-  });
+  mountedHandles = [
+    mountSubtasksBlock(root.querySelector('[data-subtasks-root]'), {
+      cardId: card.id,
+      subtasks: card.subtasks,
+      progress: card.progress,
+      templates: store.state.templates,
+    }),
+    mountCommentsBlock(root.querySelector('[data-comments-root]'), { cardId: card.id, comments: card.comments }),
+    mountAttachmentsBlock(root.querySelector('[data-attachments-root]'), { cardId: card.id, attachments: card.attachments }),
+    mountTimeLogsBlock(root.querySelector('[data-timelogs-root]'), { cardId: card.id, timeLogs: card.timeLogs }),
+  ];
 }

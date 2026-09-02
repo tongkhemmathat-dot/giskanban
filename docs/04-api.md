@@ -179,15 +179,28 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 
 | Method | Path | Body |
 |---|---|---|
-| POST | `/api/cards/:id/comments` | `{ authorName, body }` |
-| DELETE | `/api/comments/:cid` | – |
-| POST | `/api/cards/:id/attachments` | `multipart/form-data`: `file`, `uploaderName` |
-| GET | `/api/attachments/:aid/download` | – |
-| DELETE | `/api/attachments/:aid` | – |
-| POST | `/api/cards/:id/time-logs` | `{ memberName, hours, note? }` |
-| DELETE | `/api/time-logs/:tid` | – |
+| POST | `/api/cards/:id/comments` | `{ authorName, body }` → 201 |
+| DELETE | `/api/comments/:cid` | – 204 |
+| POST | `/api/cards/:id/attachments` | `multipart/form-data`: `file`, `uploaderName` → 201 |
+| GET | `/api/attachments/:aid/download` | – streams the file |
+| DELETE | `/api/attachments/:aid` | – 204 |
+| POST | `/api/cards/:id/time-logs` | `{ memberName, hours, note? }` → 201 |
+| DELETE | `/api/time-logs/:tid` | – 204 |
 
-ข้อจำกัดไฟล์: สูงสุด **10 MB** · อนุญาต `image/*`, `application/pdf`, `text/plain`, `.log`, `.csv`, `.zip`
+ข้อจำกัดไฟล์: สูงสุด **10 MB** (`MAX_UPLOAD_MB`) · อนุญาต `image/*`, `application/pdf`, `text/plain`, `.log`, `.csv`, `.zip` — เกินขนาด → `413 PAYLOAD_TOO_LARGE`, ชนิดไฟล์ไม่รองรับ → `400 VALIDATION_ERROR`
+
+**Response shapes** (201 ของแต่ละ POST — โครงเดียวกับที่อยู่ใน `comments`/`attachments`/`timeLogs` ของ `GET /api/cards/:id`):
+
+```json
+// POST /api/cards/:id/comments
+{ "id": 5, "author": { "id": 2, "name": "ณัฐพล ว.", "color": "#10b981" }, "body": "กำลังดำเนินการอยู่", "createdAt": "2026-09-02T10:42" }
+
+// POST /api/cards/:id/attachments
+{ "id": 3, "filename": "note.txt", "mimeType": "text/plain", "size": 41, "uploader": { "id": 2, "name": "ณัฐพล ว.", "color": "#10b981" }, "createdAt": "2026-09-02T10:43" }
+
+// POST /api/cards/:id/time-logs
+{ "id": 7, "member": { "id": 2, "name": "ณัฐพล ว.", "color": "#10b981" }, "hours": 1.5, "note": null, "loggedAt": "2026-09-02T10:44" }
+```
 
 ---
 

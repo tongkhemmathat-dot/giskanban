@@ -152,6 +152,17 @@ function setSearchQuery(q) {
   emit();
 }
 
+// Increments/decrements one field of card.counts. comments.js and
+// attachments.js each call this independently after their own mutations —
+// counts is one nested object, and updateCardLocal's merge is shallow (it
+// replaces `counts` wholesale, not per-field), so both read the CURRENT
+// value from state right before writing rather than tracking their own
+// mount-time copy, otherwise whichever writes second clobbers the other's change.
+function bumpCardCount(id, field, delta) {
+  const current = getCard(id)?.counts || { comments: 0, attachments: 0 };
+  updateCardLocal(id, { counts: { ...current, [field]: Math.max(0, (current[field] || 0) + delta) } });
+}
+
 export const store = {
   state,
   subscribe,
@@ -166,4 +177,5 @@ export const store = {
   updateCardLocal,
   removeCardLocal,
   setSearchQuery,
+  bumpCardCount,
 };

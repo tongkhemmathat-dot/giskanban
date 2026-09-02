@@ -22,6 +22,11 @@ export const actorQuerySchema = z
 // `/api/subtasks/:sid`-style route params.
 export const sidParamSchema = z.object({ sid: z.coerce.number().int().positive('sid ไม่ถูกต้อง') }).strip();
 
+// `/api/comments/:cid`, `/api/attachments/:aid`, `/api/time-logs/:tid`.
+export const cidParamSchema = z.object({ cid: z.coerce.number().int().positive('cid ไม่ถูกต้อง') }).strip();
+export const aidParamSchema = z.object({ aid: z.coerce.number().int().positive('aid ไม่ถูกต้อง') }).strip();
+export const tidParamSchema = z.object({ tid: z.coerce.number().int().positive('tid ไม่ถูกต้อง') }).strip();
+
 // ISO 8601-ish datetime, or explicit null to clear (docs/05-business-rules.md §7:
 // "ISO 8601 หรือ null"). Shared by card.schema.js (dueDate) and
 // subtask.schema.js (dueDate) — matches the datetime-local shape used in

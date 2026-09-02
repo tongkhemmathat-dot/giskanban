@@ -21,6 +21,9 @@ import { toApiDateTime, nowSqlite } from '../utils/date.js';
 import { findOrCreateMemberByName } from './member.service.js';
 import { logActivity, listActivities } from './activity.service.js';
 import { getCardProgress, listSubtasksForCard } from './subtask.service.js';
+import { listComments } from './comment.service.js';
+import { listAttachments } from './attachment.service.js';
+import { listTimeLogs } from './timelog.service.js';
 
 const GAP = 65536;
 const CARD_FIELD_COLUMNS = {
@@ -62,57 +65,6 @@ function getCardCounts(cardId) {
   const comments = db.prepare('SELECT COUNT(*) AS n FROM comments WHERE card_id = ?').get(cardId).n;
   const attachments = db.prepare('SELECT COUNT(*) AS n FROM attachments WHERE card_id = ?').get(cardId).n;
   return { comments, attachments };
-}
-
-function getComments(cardId) {
-  return db
-    .prepare(
-      `SELECT c.*, m.name AS author_name, m.color AS author_color
-       FROM comments c JOIN members m ON m.id = c.author_id
-       WHERE c.card_id = ? ORDER BY c.created_at`,
-    )
-    .all(cardId)
-    .map((c) => ({
-      id: c.id,
-      author: { id: c.author_id, name: c.author_name, color: c.author_color },
-      body: c.body,
-      createdAt: toApiDateTime(c.created_at),
-    }));
-}
-
-function getAttachments(cardId) {
-  return db
-    .prepare(
-      `SELECT a.*, m.name AS uploader_name, m.color AS uploader_color
-       FROM attachments a LEFT JOIN members m ON m.id = a.uploader_id
-       WHERE a.card_id = ? ORDER BY a.created_at`,
-    )
-    .all(cardId)
-    .map((a) => ({
-      id: a.id,
-      filename: a.filename,
-      mimeType: a.mime_type,
-      size: a.size,
-      uploader: a.uploader_id ? { id: a.uploader_id, name: a.uploader_name, color: a.uploader_color } : null,
-      createdAt: toApiDateTime(a.created_at),
-    }));
-}
-
-function getTimeLogs(cardId) {
-  return db
-    .prepare(
-      `SELECT t.*, m.name AS member_name, m.color AS member_color
-       FROM time_logs t JOIN members m ON m.id = t.member_id
-       WHERE t.card_id = ? ORDER BY t.logged_at`,
-    )
-    .all(cardId)
-    .map((t) => ({
-      id: t.id,
-      member: { id: t.member_id, name: t.member_name, color: t.member_color },
-      hours: t.hours,
-      note: t.note,
-      loggedAt: toApiDateTime(t.logged_at),
-    }));
 }
 
 // row must come from a query joined with `lists AS l` (for l.is_done) and
@@ -215,9 +167,9 @@ export function getCardById(id) {
 
   const card = mapCardRow(row);
   card.subtasks = listSubtasksForCard(id);
-  card.comments = getComments(id);
-  card.attachments = getAttachments(id);
-  card.timeLogs = getTimeLogs(id);
+  card.comments = listComments(id);
+  card.attachments = listAttachments(id);
+  card.timeLogs = listTimeLogs(id);
   card.activities = listActivities(id);
   return card;
 }

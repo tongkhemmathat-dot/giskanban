@@ -93,10 +93,10 @@
 
 ## Phase 5 — ส่วนเสริม
 
-- [ ] **5.1** Comments API + UI
-- [ ] **5.2** Attachments (multer, 10MB) + download + UI
-- [ ] **5.3** Time logs API + UI
-- [ ] **5.4** Activity timeline ใน modal
+- [x] **5.1** Comments API + UI
+- [x] **5.2** Attachments (multer, 10MB) + download + UI
+- [x] **5.3** Time logs API + UI
+- [x] **5.4** Activity timeline ใน modal
 - [ ] **5.5** Labels CRUD + chip บนการ์ด
 - [ ] **5.6** Reports 5 endpoints
 - [ ] **5.7** Responsive มือถือ (ตาม `docs/06-ui-spec.md` ข้อ 10)
