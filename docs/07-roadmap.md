@@ -98,7 +98,7 @@
 - [x] **5.3** Time logs API + UI
 - [x] **5.4** Activity timeline ใน modal
 - [x] **5.5** Labels CRUD + chip บนการ์ด
-- [ ] **5.6** Reports 5 endpoints
+- [x] **5.6** Reports 5 endpoints
 - [ ] **5.7** Responsive มือถือ (ตาม `docs/06-ui-spec.md` ข้อ 10)
 
 ---

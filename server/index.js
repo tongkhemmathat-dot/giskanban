@@ -17,6 +17,7 @@ import commentsRouter from './routes/comments.routes.js';
 import attachmentsRouter from './routes/attachments.routes.js';
 import timelogsRouter from './routes/timelogs.routes.js';
 import labelsRouter from './routes/labels.routes.js';
+import reportsRouter from './routes/reports.routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -54,6 +55,7 @@ app.use('/api', commentsRouter); // spans /api/cards/:id/comments and /api/comme
 app.use('/api', attachmentsRouter); // spans /api/cards/:id/attachments and /api/attachments/:aid...
 app.use('/api', timelogsRouter); // spans /api/cards/:id/time-logs and /api/time-logs/:tid
 app.use('/api/labels', labelsRouter);
+app.use('/api/reports', reportsRouter);
 
 app.use(express.static(PUBLIC_DIR));
 
