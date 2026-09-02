@@ -7,5 +7,5 @@
       "config": { "includeFiles": ["public/**", "server/db/migrations/**"] }
     }
   ],
-  "routes": [{ "src": "/(.*)", "dest": "/api/index" }]
+  "routes": [{ "src": "/(.*)", "dest": "/api/index.js" }]
 }
