@@ -24,6 +24,7 @@ import { getCardProgress, listSubtasksForCard } from './subtask.service.js';
 import { listComments } from './comment.service.js';
 import { listAttachments } from './attachment.service.js';
 import { listTimeLogs } from './timelog.service.js';
+import { listLabelsForCard } from './label.service.js';
 
 const GAP = 65536;
 const CARD_FIELD_COLUMNS = {
@@ -47,16 +48,6 @@ function getCardAssignees(cardId) {
       `SELECT m.id, m.name, m.color FROM card_assignees ca
        JOIN members m ON m.id = ca.member_id
        WHERE ca.card_id = ? ORDER BY m.name`,
-    )
-    .all(cardId);
-}
-
-function getCardLabels(cardId) {
-  return db
-    .prepare(
-      `SELECT l.id, l.name, l.color FROM card_labels cl
-       JOIN labels l ON l.id = cl.label_id
-       WHERE cl.card_id = ? ORDER BY l.id`,
     )
     .all(cardId);
 }
@@ -90,7 +81,7 @@ function mapCardRow(row) {
     estimatedHours: row.estimated_hours,
     creator: { id: row.creator_id, name: row.creator_name, color: row.creator_color },
     assignees: getCardAssignees(row.id),
-    labels: getCardLabels(row.id),
+    labels: listLabelsForCard(row.id),
     progress: getCardProgress(row.id),
     counts: getCardCounts(row.id),
     startedAt: toApiDateTime(row.started_at),

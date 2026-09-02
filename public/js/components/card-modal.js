@@ -12,6 +12,7 @@ import { mountSubtasksBlock } from './subtasks.js';
 import { mountCommentsBlock } from './comments.js';
 import { mountAttachmentsBlock } from './attachments.js';
 import { mountTimeLogsBlock } from './time-logs.js';
+import { mountLabelsBlock } from './labels.js';
 
 const ACTIVITY_TEXT = {
   card_created: () => 'สร้างใบงาน',
@@ -94,6 +95,7 @@ function modalHTML(card) {
               ${toggleAssigneeLabel(card.assignees)}
             </button>
           </div>
+          <div data-labels-root></div>
           <div>
             <div class="text-xs text-slate-500 mb-1">ความสำคัญ</div>
             <select data-field="priority" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5">
@@ -272,5 +274,6 @@ export async function openCardModal(cardId) {
     mountCommentsBlock(root.querySelector('[data-comments-root]'), { cardId: card.id, comments: card.comments }),
     mountAttachmentsBlock(root.querySelector('[data-attachments-root]'), { cardId: card.id, attachments: card.attachments }),
     mountTimeLogsBlock(root.querySelector('[data-timelogs-root]'), { cardId: card.id, timeLogs: card.timeLogs }),
+    mountLabelsBlock(root.querySelector('[data-labels-root]'), { cardId: card.id, labels: card.labels }),
   ];
 }

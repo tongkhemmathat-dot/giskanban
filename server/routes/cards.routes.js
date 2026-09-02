@@ -9,8 +9,10 @@ import {
   addAssigneeSchema,
   listCardsQuerySchema,
 } from '../schemas/card.schema.js';
-import { idParamSchema, cardMemberParamsSchema, actorQuerySchema } from '../schemas/common.schema.js';
+import { attachLabelSchema } from '../schemas/label.schema.js';
+import { idParamSchema, cardMemberParamsSchema, cardLabelParamsSchema, actorQuerySchema } from '../schemas/common.schema.js';
 import * as svc from '../services/card.service.js';
+import * as labelSvc from '../services/label.service.js';
 
 const r = Router();
 
@@ -56,5 +58,15 @@ r.delete(
     res.json({ assignees });
   },
 );
+
+r.post('/:id/labels', validate(idParamSchema, 'params'), validate(attachLabelSchema), (req, res) => {
+  const labels = labelSvc.attachLabel(req.params.id, req.body.labelId);
+  res.status(201).json({ labels });
+});
+
+r.delete('/:id/labels/:labelId', validate(cardLabelParamsSchema, 'params'), (req, res) => {
+  const labels = labelSvc.detachLabel(req.params.id, req.params.labelId);
+  res.json({ labels });
+});
 
 export default r;

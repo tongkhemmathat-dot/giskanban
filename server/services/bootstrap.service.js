@@ -5,11 +5,11 @@
 import db from '../db/connection.js';
 import { listMembers } from './member.service.js';
 import { listCards } from './card.service.js';
+import { listLabels } from './label.service.js';
 
 export function getBootstrap() {
   const board = db.prepare('SELECT * FROM boards LIMIT 1').get();
   const lists = db.prepare('SELECT * FROM lists ORDER BY position').all();
-  const labels = db.prepare('SELECT * FROM labels ORDER BY id').all();
   const templates = db.prepare('SELECT id, name, slug, items FROM templates ORDER BY id').all();
 
   return {
@@ -22,7 +22,7 @@ export function getBootstrap() {
       isDone: l.is_done,
     })),
     members: listMembers(),
-    labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+    labels: listLabels(),
     templates: templates.map((t) => ({
       id: t.id,
       name: t.name,

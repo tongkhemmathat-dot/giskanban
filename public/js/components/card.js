@@ -30,6 +30,17 @@ export function avatarHTML(person, size = 'w-6 h-6 text-[10px]') {
   return `<div class="${size} rounded-full flex items-center justify-center text-white font-medium shrink-0" style="background:${esc(color)}" title="${esc(person.name || '')}">${esc(initials)}</div>`;
 }
 
+// Dynamic per-label colors can't be static Tailwind classes, so this uses
+// inline style like avatarHTML does for member colors — background is the
+// label color at ~13% opacity (hex alpha suffix) so text stays legible
+// without needing a separate light/dark text-color lookup per label.
+function labelChipsHTML(labels) {
+  if (!labels?.length) return '';
+  return `<div class="flex flex-wrap gap-1 pl-2 mb-1">${labels
+    .map((l) => `<span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style="background:${esc(l.color)}22;color:${esc(l.color)}">${esc(l.name)}</span>`)
+    .join('')}</div>`;
+}
+
 function slaChipHTML(card) {
   if (card.slaStatus === 'overdue') {
     return '<span class="text-rose-600 text-[11px] font-medium flex items-center gap-1">⏰ เกินกำหนด</span>';
@@ -57,6 +68,7 @@ export function cardHTML(card) {
       ${slaChipHTML(card)}
     </div>
     <div class="font-medium text-slate-800 pl-2 mb-1 leading-snug">${esc(card.title)}</div>
+    ${labelChipsHTML(card.labels)}
     ${card.site || card.customer ? `<div class="text-[11px] text-slate-500 pl-2">📍 ${esc(card.site || '')}${card.site && card.customer ? ' · ' : ''}${esc(card.customer || '')}</div>` : ''}
     ${card.deviceRef ? `<div class="text-[11px] text-slate-500 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
     ${card.projectCode ? `<div class="text-[11px] text-slate-500 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}

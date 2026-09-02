@@ -204,7 +204,25 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 
 ---
 
-## 8. Reports
+## 8. Labels
+
+| Method | Path | Body |
+|---|---|---|
+| GET | `/api/labels` | – คืน `{ items: [...] }` |
+| POST | `/api/labels` | `{ name, color? }` → 201 — `color` ไม่ส่งมา = สุ่มจาก palette คงที่ (เหมือน member auto-color) |
+| PATCH | `/api/labels/:id` | `{ name?, color? }` |
+| DELETE | `/api/labels/:id` | – 204 — ลบออกจากทุกการ์ดที่ติดอยู่ด้วย (`ON DELETE CASCADE`) |
+| POST | `/api/cards/:id/labels` | `{ labelId }` → 201 `{ labels }` — ติดป้ายกำกับให้การ์ด |
+| DELETE | `/api/cards/:id/labels/:labelId` | – 200 `{ labels }` — ถอดป้ายกำกับออกจากการ์ด |
+
+```json
+// GET /api/labels, POST /api/labels response
+{ "id": 1, "name": "Network", "color": "#0ea5e9" }
+```
+
+---
+
+## 9. Reports
 
 | Method | Path | คืนอะไร |
 |---|---|---|
@@ -214,6 +232,6 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 | GET | `/api/reports/throughput?weeks=8` | `[{ week: "W35", opened: 12, closed: 8 }]` |
 | GET | `/api/reports/by-creator` | `[{ name, count }]` |
 
-## 9. Health
+## 10. Health
 
 `GET /api/health` → `{ "ok": true, "db": "connected", "version": "1.0.0", "uptime": 3600 }`
