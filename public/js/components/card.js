@@ -10,10 +10,10 @@ export function esc(s) {
 }
 
 export const TYPE_META = {
-  incident: { icon: '🚨', label: 'Incident', chip: 'bg-rose-50 text-rose-600 border-rose-200' },
-  service_request: { icon: '🛠', label: 'Service', chip: 'bg-sky-50 text-sky-600 border-sky-200' },
-  change: { icon: '🔄', label: 'Change', chip: 'bg-violet-50 text-violet-600 border-violet-200' },
-  maintenance: { icon: '🧰', label: 'PM', chip: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+  incident: { icon: '🚨', label: 'Incident', chip: 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800' },
+  service_request: { icon: '🛠', label: 'Service', chip: 'bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800' },
+  change: { icon: '🔄', label: 'Change', chip: 'bg-violet-50 text-violet-600 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800' },
+  maintenance: { icon: '🧰', label: 'PM', chip: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' },
 };
 
 export const PRIORITY_META = {
@@ -43,10 +43,10 @@ function labelChipsHTML(labels) {
 
 function slaChipHTML(card) {
   if (card.slaStatus === 'overdue') {
-    return '<span class="text-rose-600 text-[11px] font-medium flex items-center gap-1">⏰ เกินกำหนด</span>';
+    return '<span class="text-rose-600 dark:text-rose-400 text-[11px] font-medium flex items-center gap-1">⏰ เกินกำหนด</span>';
   }
   if (card.slaStatus === 'at_risk') {
-    return '<span class="text-orange-500 text-[11px] font-medium flex items-center gap-1">⚠ ใกล้ครบ</span>';
+    return '<span class="text-orange-500 dark:text-orange-400 text-[11px] font-medium flex items-center gap-1">⚠ ใกล้ครบ</span>';
   }
   return '';
 }
@@ -61,27 +61,27 @@ export function cardHTML(card) {
   const assignees = Array.isArray(card.assignees) ? card.assignees : [];
 
   return `
-  <div class="card-item bg-white rounded-lg border border-slate-200 p-3 mb-2 relative" data-card-id="${card.id}">
+  <div class="card-item bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 mb-2 relative" data-card-id="${card.id}">
     <div class="absolute left-0 top-3 bottom-3 w-1 rounded-r ${p.dot}"></div>
     <div class="flex items-center justify-between mb-1 pl-2">
       <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${esc(t.label)}</span>
       ${slaChipHTML(card)}
     </div>
-    <div class="font-medium text-slate-800 pl-2 mb-1 leading-snug">${esc(card.title)}</div>
+    <div class="font-medium text-slate-800 dark:text-slate-100 pl-2 mb-1 leading-snug">${esc(card.title)}</div>
     ${labelChipsHTML(card.labels)}
-    ${card.site || card.customer ? `<div class="text-[11px] text-slate-500 pl-2">📍 ${esc(card.site || '')}${card.site && card.customer ? ' · ' : ''}${esc(card.customer || '')}</div>` : ''}
-    ${card.deviceRef ? `<div class="text-[11px] text-slate-500 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
-    ${card.projectCode ? `<div class="text-[11px] text-slate-500 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}
-    <div class="text-[11px] text-slate-600 pl-2 mt-1 flex items-center gap-1">✍️ ผู้สร้าง: <span class="font-medium">${esc(card.creator?.name || '—')}</span></div>
+    ${card.site || card.customer ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 pl-2">📍 ${esc(card.site || '')}${card.site && card.customer ? ' · ' : ''}${esc(card.customer || '')}</div>` : ''}
+    ${card.deviceRef ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
+    ${card.projectCode ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}
+    <div class="text-[11px] text-slate-600 dark:text-slate-300 pl-2 mt-1 flex items-center gap-1">✍️ ผู้สร้าง: <span class="font-medium">${esc(card.creator?.name || '—')}</span></div>
     ${prog.total > 0 ? `
       <div class="pl-2 mt-2">
-        <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
           <span>ขั้นตอน ${prog.done}/${prog.total}</span><span>${prog.pct}%</span>
         </div>
-        <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${bar} progress-bar-fill" style="width:${prog.pct}%"></div></div>
+        <div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden"><div class="h-full ${bar} progress-bar-fill" style="width:${prog.pct}%"></div></div>
       </div>` : ''}
     <div class="flex items-center justify-between mt-2 pl-2">
-      <div class="flex items-center gap-2 text-[11px] text-slate-500">
+      <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
         <span>${esc(card.code)}</span>
         ${prog.total ? `<span>☑${prog.done}/${prog.total}</span>` : ''}
         ${counts.comments ? `<span>💬${counts.comments}</span>` : ''}

@@ -7,6 +7,7 @@ body { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; }
 
 ::-webkit-scrollbar { height: 8px; width: 8px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
 
 /* Kanban card */
 .card-item { cursor: grab; transition: box-shadow .15s, border-color .15s; }
@@ -21,6 +22,7 @@ body { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; }
 .modal-backdrop { background: rgba(15, 23, 42, .55); }
 
 .nav-link.active { background: #eef2ff; color: #4338ca; font-weight: 600; }
+.dark .nav-link.active { background: #312e81; color: #c7d2fe; }
 
 .progress-bar-fill { transition: width .25s ease; }
 

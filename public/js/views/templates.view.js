@@ -37,17 +37,17 @@ function linesToItems(raw) {
 
 function formHTML({ name = '', items = '', submitLabel, formId }) {
   return `
-  <form data-template-form="${formId}" class="bg-white rounded-xl border border-indigo-200 p-4 space-y-3">
+  <form data-template-form="${formId}" class="bg-white dark:bg-slate-800 rounded-xl border border-indigo-200 dark:border-indigo-800 p-4 space-y-3">
     <div>
-      <label class="text-xs font-medium">ชื่อแม่แบบ *</label>
-      <input data-field="name" required value="${esc(name)}" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+      <label class="text-xs font-medium dark:text-slate-300">ชื่อแม่แบบ *</label>
+      <input data-field="name" required value="${esc(name)}" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5 mt-1">
     </div>
     <div>
-      <label class="text-xs font-medium">ขั้นตอน (บรรทัดละ 1 ข้อ) *</label>
-      <textarea data-field="items" required rows="6" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1" placeholder="ทำ backup&#10;ติดตั้งเวอร์ชันใหม่&#10;ทดสอบ">${esc(items)}</textarea>
+      <label class="text-xs font-medium dark:text-slate-300">ขั้นตอน (บรรทัดละ 1 ข้อ) *</label>
+      <textarea data-field="items" required rows="6" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5 mt-1" placeholder="ทำ backup&#10;ติดตั้งเวอร์ชันใหม่&#10;ทดสอบ">${esc(items)}</textarea>
     </div>
     <div class="flex justify-end gap-2">
-      <button type="button" data-cancel-form class="text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">ยกเลิก</button>
+      <button type="button" data-cancel-form class="text-sm px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">ยกเลิก</button>
       <button type="submit" class="text-sm px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">${esc(submitLabel)}</button>
     </div>
   </form>`;
@@ -62,18 +62,18 @@ export function mountTemplates(root) {
       return formHTML({ name: t.name, items: itemsToLines(t.items), submitLabel: 'บันทึก', formId: `edit-${t.id}` });
     }
     return `
-    <div class="bg-white rounded-xl border border-slate-200 p-4" data-template-id="${t.id}">
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4" data-template-id="${t.id}">
       <div class="flex items-start justify-between gap-2 mb-2">
         <div>
-          <div class="font-medium text-sm">${esc(t.name)}</div>
-          <div class="text-xs text-slate-400">${t.itemCount} ขั้นตอน</div>
+          <div class="font-medium text-sm dark:text-slate-100">${esc(t.name)}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500">${t.itemCount} ขั้นตอน</div>
         </div>
         <div class="flex gap-2 shrink-0">
-          <button type="button" data-edit-template class="text-xs text-indigo-600 hover:underline">แก้ไข</button>
-          <button type="button" data-delete-template class="text-xs text-rose-600 hover:underline">ลบ</button>
+          <button type="button" data-edit-template class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">แก้ไข</button>
+          <button type="button" data-delete-template class="text-xs text-rose-600 dark:text-rose-400 hover:underline">ลบ</button>
         </div>
       </div>
-      <ol class="text-xs text-slate-600 list-decimal list-inside space-y-0.5">
+      <ol class="text-xs text-slate-600 dark:text-slate-300 list-decimal list-inside space-y-0.5">
         ${t.items.map((item) => `<li>${esc(item)}</li>`).join('')}
       </ol>
     </div>`;
@@ -81,16 +81,16 @@ export function mountTemplates(root) {
 
   function bodyHTML() {
     if (state.loading) {
-      return '<div class="text-sm text-slate-400">กำลังโหลด…</div>';
+      return '<div class="text-sm text-slate-400 dark:text-slate-500">กำลังโหลด…</div>';
     }
     return `
     <div class="mb-4 flex items-center justify-between">
-      <h2 class="text-lg font-semibold">แม่แบบขั้นตอน</h2>
+      <h2 class="text-lg font-semibold dark:text-slate-100">แม่แบบขั้นตอน</h2>
       ${!state.creating ? '<button type="button" data-open-create class="bg-indigo-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-indigo-700">+ สร้างแม่แบบใหม่</button>' : ''}
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       ${state.creating ? formHTML({ submitLabel: 'สร้าง', formId: 'create' }) : ''}
-      ${state.templates.map(templateCardHTML).join('') || (state.creating ? '' : '<div class="text-sm text-slate-400">ยังไม่มีแม่แบบ</div>')}
+      ${state.templates.map(templateCardHTML).join('') || (state.creating ? '' : '<div class="text-sm text-slate-400 dark:text-slate-500">ยังไม่มีแม่แบบ</div>')}
     </div>`;
   }
 

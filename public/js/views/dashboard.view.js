@@ -13,15 +13,17 @@ function isDoneList(listId) {
 }
 
 function kpiHTML(label, value, color) {
-  return `<div class="bg-white rounded-xl border border-slate-200 p-4"><div class="text-xs text-slate-500 mb-1">${esc(label)}</div><div class="text-2xl font-semibold text-${color}-600">${value}</div></div>`;
+  return `<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="text-xs text-slate-500 dark:text-slate-400 mb-1">${esc(label)}</div><div class="text-2xl font-semibold text-${color}-600 dark:text-${color}-400">${value}</div></div>`;
 }
 
 function riskyRowHTML(c) {
   const prog = c.progress || { done: 0, total: 0 };
   const statusHTML =
-    c.slaStatus === 'overdue' ? '<span class="text-rose-600">เกินกำหนด</span>' : '<span class="text-orange-500">ใกล้ครบ</span>';
+    c.slaStatus === 'overdue'
+      ? '<span class="text-rose-600 dark:text-rose-400">เกินกำหนด</span>'
+      : '<span class="text-orange-500 dark:text-orange-400">ใกล้ครบ</span>';
   return `
-  <tr class="border-b border-slate-50 hover:bg-slate-50 cursor-pointer" data-card-id="${c.id}">
+  <tr class="border-b border-slate-50 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer dark:text-slate-300" data-card-id="${c.id}">
     <td class="px-4 py-2">${esc(c.code)}</td>
     <td>${esc(c.title)}</td>
     <td>${esc(c.creator?.name || '—')}</td>
@@ -47,25 +49,25 @@ function bodyHTML() {
     ${kpiHTML('ปิดแล้ว', doneCount, 'emerald')}
   </div>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-    <div class="bg-white rounded-xl border border-slate-200 p-4">
-      <div class="text-sm font-medium mb-2">ภาระงานรายคน (ผู้รับผิดชอบ)</div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+      <div class="text-sm font-medium mb-2 dark:text-slate-100">ภาระงานรายคน (ผู้รับผิดชอบ)</div>
       <canvas id="chartWorkload" height="160"></canvas>
     </div>
-    <div class="bg-white rounded-xl border border-slate-200 p-4">
-      <div class="text-sm font-medium mb-2">จำนวนใบงานที่แต่ละคนสร้าง</div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+      <div class="text-sm font-medium mb-2 dark:text-slate-100">จำนวนใบงานที่แต่ละคนสร้าง</div>
       <canvas id="chartCreator" height="160"></canvas>
     </div>
   </div>
-  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="px-4 py-2 font-medium text-sm border-b border-slate-100">งานเกินกำหนด + ใกล้ครบ</div>
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-4 py-2 font-medium text-sm border-b border-slate-100 dark:border-slate-700 dark:text-slate-100">งานเกินกำหนด + ใกล้ครบ</div>
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-slate-500 text-xs border-b border-slate-100">
+          <tr class="text-left text-slate-500 dark:text-slate-400 text-xs border-b border-slate-100 dark:border-slate-700">
             <th class="px-4 py-2">Code</th><th>งาน</th><th>ผู้สร้าง</th><th>ผู้รับผิดชอบ</th><th>ความคืบหน้า</th><th>กำหนด</th><th>สถานะ</th>
           </tr>
         </thead>
-        <tbody>${risky.map(riskyRowHTML).join('') || '<tr><td class="px-4 py-3 text-slate-400" colspan="7">ไม่มีงานเกินกำหนดหรือใกล้ครบ 🎉</td></tr>'}</tbody>
+        <tbody>${risky.map(riskyRowHTML).join('') || '<tr><td class="px-4 py-3 text-slate-400 dark:text-slate-500" colspan="7">ไม่มีงานเกินกำหนดหรือใกล้ครบ 🎉</td></tr>'}</tbody>
       </table>
     </div>
   </div>`;
@@ -81,6 +83,17 @@ function destroyCharts() {
   chartCreator = null;
 }
 
+// Chart.js draws its own tick labels/gridlines on <canvas> — they don't
+// inherit CSS, so dark mode needs explicit colors here or they default to
+// near-black text that's unreadable on a dark card (backlog: dark mode).
+function chartThemeColors() {
+  const isDark = document.documentElement.classList.contains('dark');
+  return {
+    tick: isDark ? '#cbd5e1' : '#475569', // slate-300 / slate-600
+    grid: isDark ? 'rgba(148,163,184,0.15)' : 'rgba(148,163,184,0.25)',
+  };
+}
+
 function initCharts(root) {
   destroyCharts();
   const wCtx = root.querySelector('#chartWorkload');
@@ -92,16 +105,30 @@ function initCharts(root) {
     (m) => store.state.cards.filter((c) => (c.assignees || []).some((a) => a.id === m.id) && !isDoneList(c.listId)).length,
   );
   const created = members.map((m) => store.state.cards.filter((c) => c.creator?.id === m.id).length);
+  const { tick, grid } = chartThemeColors();
 
   chartWorkload = new Chart(wCtx, {
     type: 'bar',
     data: { labels: members.map((m) => m.name), datasets: [{ data: workload, backgroundColor: '#6366f1', borderRadius: 4 }] },
-    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, color: tick }, grid: { color: grid } },
+        x: { ticks: { color: tick }, grid: { color: grid } },
+      },
+    },
   });
   chartCreator = new Chart(cCtx, {
     type: 'bar',
     data: { labels: members.map((m) => m.name), datasets: [{ data: created, backgroundColor: '#10b981', borderRadius: 4 }] },
-    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { stepSize: 1, color: tick }, grid: { color: grid } },
+        y: { ticks: { color: tick }, grid: { color: grid } },
+      },
+    },
   });
 }
 

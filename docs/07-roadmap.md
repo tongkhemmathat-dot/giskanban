@@ -121,4 +121,4 @@
 - กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
 - ใบงานประจำ (recurring) สำหรับงาน PM
-- Dark mode
+- [x] Dark mode — toggle ใน header, จำค่าไว้ (`localStorage jc_theme`), ตาม system preference เป็นค่าเริ่มต้น

@@ -8,9 +8,9 @@ import { openCardModal } from '../components/card-modal.js';
 function sectionHTML(title, cards) {
   return `
   <div class="mb-6">
-    <div class="font-medium text-sm mb-2">${title} (${cards.length})</div>
+    <div class="font-medium text-sm mb-2 dark:text-slate-100">${title} (${cards.length})</div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-      ${cards.map((c) => `<div>${cardHTML(c)}</div>`).join('') || '<div class="text-xs text-slate-400">ไม่มี</div>'}
+      ${cards.map((c) => `<div>${cardHTML(c)}</div>`).join('') || '<div class="text-xs text-slate-400 dark:text-slate-500">ไม่มี</div>'}
     </div>
   </div>`;
 }
@@ -18,7 +18,7 @@ function sectionHTML(title, cards) {
 function render(root) {
   const me = store.state.me;
   if (!me) {
-    root.innerHTML = `<div class="text-sm text-slate-500">กรุณาเลือก "ฉันคือ" ที่แถบด้านบนก่อน เพื่อดูงานของคุณ</div>`;
+    root.innerHTML = `<div class="text-sm text-slate-500 dark:text-slate-400">กรุณาเลือก "ฉันคือ" ที่แถบด้านบนก่อน เพื่อดูงานของคุณ</div>`;
     return;
   }
   const created = store.state.cards.filter((c) => c.creator?.name === me);

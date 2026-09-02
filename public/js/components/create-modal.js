@@ -27,89 +27,90 @@ function siteDatalistHTML() {
 }
 
 function modalHTML() {
+  const inputCls = 'w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5 mt-1';
   return `
   <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-0 md:p-4" data-close-on-backdrop>
-    <div class="bg-white md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-lg md:max-h-[90vh] overflow-y-auto p-5">
+    <div class="bg-white dark:bg-slate-800 md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-lg md:max-h-[90vh] overflow-y-auto p-5">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">สร้างใบงานใหม่</h2>
-        <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 text-lg leading-none" aria-label="ปิด">✕</button>
+        <h2 class="text-lg font-semibold dark:text-slate-100">สร้างใบงานใหม่</h2>
+        <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none" aria-label="ปิด">✕</button>
       </div>
       <form id="createCardForm" class="space-y-3">
-        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
-          <label class="text-xs font-medium text-indigo-700" for="cCreator">✍️ ผู้สร้างใบงาน *</label>
+        <div class="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-3">
+          <label class="text-xs font-medium text-indigo-700 dark:text-indigo-300" for="cCreator">✍️ ผู้สร้างใบงาน *</label>
           <div class="flex gap-2 mt-1">
-            <select id="cCreator" required class="flex-1 border border-slate-300 rounded-md text-sm px-2 py-1.5">
+            <select id="cCreator" required class="flex-1 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5">
               <option value="">— เลือกชื่อ —</option>
               ${memberOptionsHTML(store.state.me)}
             </select>
-            <button type="button" id="cAddMember" class="text-xs border border-indigo-300 text-indigo-600 rounded-md px-2 hover:bg-indigo-100">+ ชื่อใหม่</button>
+            <button type="button" id="cAddMember" class="text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 rounded-md px-2 hover:bg-indigo-100 dark:hover:bg-indigo-900">+ ชื่อใหม่</button>
           </div>
         </div>
         <div>
-          <label class="text-xs font-medium" for="cTitle">ชื่องาน *</label>
-          <input id="cTitle" required class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1" placeholder="เช่น Upgrade ArcGIS Enterprise 12.1">
+          <label class="text-xs font-medium dark:text-slate-300" for="cTitle">ชื่องาน *</label>
+          <input id="cTitle" required class="${inputCls}" placeholder="เช่น Upgrade ArcGIS Enterprise 12.1">
         </div>
         <div>
-          <label class="text-xs font-medium" for="cDesc">รายละเอียด</label>
-          <textarea id="cDesc" rows="2" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></textarea>
+          <label class="text-xs font-medium dark:text-slate-300" for="cDesc">รายละเอียด</label>
+          <textarea id="cDesc" rows="2" class="${inputCls}"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-medium" for="cType">ประเภทงาน</label>
-            <select id="cType" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+            <label class="text-xs font-medium dark:text-slate-300" for="cType">ประเภทงาน</label>
+            <select id="cType" class="${inputCls}">
               ${Object.entries(TYPE_META).map(([k, v]) => `<option value="${k}">${v.icon} ${esc(v.label)}</option>`).join('')}
             </select>
           </div>
           <div>
-            <label class="text-xs font-medium" for="cPriority">ความสำคัญ</label>
-            <select id="cPriority" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+            <label class="text-xs font-medium dark:text-slate-300" for="cPriority">ความสำคัญ</label>
+            <select id="cPriority" class="${inputCls}">
               ${Object.entries(PRIORITY_META).map(([k, v]) => `<option value="${k}" ${k === 'medium' ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}
             </select>
-            <div id="cSlaHint" class="text-[11px] text-slate-400 mt-0.5">SLA: ภายใน ${SLA_HOURS.medium} ชั่วโมง</div>
+            <div id="cSlaHint" class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">SLA: ภายใน ${SLA_HOURS.medium} ชั่วโมง</div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-medium" for="cSite">Site</label>
-            <input id="cSite" list="cSiteList" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1">
+            <label class="text-xs font-medium dark:text-slate-300" for="cSite">Site</label>
+            <input id="cSite" list="cSiteList" class="${inputCls}">
             <datalist id="cSiteList">${siteDatalistHTML()}</datalist>
           </div>
-          <div><label class="text-xs font-medium" for="cCustomer">ลูกค้า</label><input id="cCustomer" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+          <div><label class="text-xs font-medium dark:text-slate-300" for="cCustomer">ลูกค้า</label><input id="cCustomer" class="${inputCls}"></div>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-xs font-medium" for="cDevice">อุปกรณ์</label><input id="cDevice" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
-          <div><label class="text-xs font-medium" for="cDue">กำหนดเสร็จ</label><input id="cDue" type="datetime-local" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1"></div>
+          <div><label class="text-xs font-medium dark:text-slate-300" for="cDevice">อุปกรณ์</label><input id="cDevice" class="${inputCls}"></div>
+          <div><label class="text-xs font-medium dark:text-slate-300" for="cDue">กำหนดเสร็จ</label><input id="cDue" type="datetime-local" class="${inputCls}"></div>
         </div>
         <div>
-          <label class="text-xs font-medium" for="cProjectCode">เลขโครงการ <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label>
-          <input id="cProjectCode" placeholder="E26-1234" maxlength="8" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5 mt-1 uppercase">
-          <div class="text-[11px] text-slate-400 mt-0.5">รูปแบบ E + ปี 2 หลัก + "-" + เลข 4 หลัก เช่น E26-1234</div>
+          <label class="text-xs font-medium dark:text-slate-300" for="cProjectCode">เลขโครงการ <span class="text-slate-400 dark:text-slate-500 font-normal">(ไม่บังคับ)</span></label>
+          <input id="cProjectCode" placeholder="E26-1234" maxlength="8" class="${inputCls} uppercase">
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">รูปแบบ E + ปี 2 หลัก + "-" + เลข 4 หลัก เช่น E26-1234</div>
         </div>
         <div>
-          <label class="text-xs font-medium" for="cSubtasks">ขั้นตอนการทำงาน</label>
-          <select id="cTemplate" class="w-full border border-slate-300 rounded-md text-xs px-2 py-1 mt-1 mb-1">
+          <label class="text-xs font-medium dark:text-slate-300" for="cSubtasks">ขั้นตอนการทำงาน</label>
+          <select id="cTemplate" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-xs px-2 py-1 mt-1 mb-1">
             <option value="">ไม่ใช้แม่แบบ</option>
             ${store.state.templates.map((t) => `<option value="${esc(t.slug)}">${esc(t.name)} (${t.itemCount} ขั้นตอน)</option>`).join('')}
           </select>
-          <textarea id="cSubtasks" rows="3" placeholder="1. ทำ backup&#10;2. ติดตั้งเวอร์ชันใหม่&#10;3. ทดสอบ" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5"></textarea>
-          <div class="text-[11px] text-slate-400 mt-0.5">วางรายการที่มีเลขนำหน้าได้เลย ระบบตัด "1." "-" ให้อัตโนมัติ</div>
+          <textarea id="cSubtasks" rows="3" placeholder="1. ทำ backup&#10;2. ติดตั้งเวอร์ชันใหม่&#10;3. ทดสอบ" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5"></textarea>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">วางรายการที่มีเลขนำหน้าได้เลย ระบบตัด "1." "-" ให้อัตโนมัติ</div>
         </div>
         <div>
-          <label class="text-xs font-medium">ผู้รับผิดชอบ (ไม่เลือก = ผู้สร้าง)</label>
+          <label class="text-xs font-medium dark:text-slate-300">ผู้รับผิดชอบ (ไม่เลือก = ผู้สร้าง)</label>
           <div class="flex flex-wrap gap-2 mt-1">
             ${store.state.members
               .map(
                 (m) => `
-              <label class="text-xs border border-slate-200 rounded-full px-2 py-1 flex items-center gap-1 cursor-pointer hover:bg-slate-50">
+              <label class="text-xs border border-slate-200 dark:border-slate-600 dark:text-slate-300 rounded-full px-2 py-1 flex items-center gap-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
                 <input type="checkbox" value="${esc(m.name)}" class="c-assignee accent-indigo-600"> ${esc(m.name)}
               </label>`,
               )
               .join('')}
           </div>
         </div>
-        <div id="cError" class="text-xs text-rose-600 hidden"></div>
+        <div id="cError" class="text-xs text-rose-600 dark:text-rose-400 hidden"></div>
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" data-close-modal class="text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">ยกเลิก</button>
+          <button type="button" data-close-modal class="text-sm px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">ยกเลิก</button>
           <button type="submit" id="cSubmit" class="text-sm px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">สร้างใบงาน</button>
         </div>
       </form>

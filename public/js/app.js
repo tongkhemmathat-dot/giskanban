@@ -12,6 +12,7 @@ import { mountMembers } from './views/members.view.js';
 import { mountDashboard } from './views/dashboard.view.js';
 import { mountTemplates } from './views/templates.view.js';
 import { openCreateModal } from './components/create-modal.js';
+import { initTheme, toggleTheme, getTheme } from './theme.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -34,14 +35,14 @@ function updateActiveNav(hash) {
 }
 
 function renderLoading() {
-  mainEl.innerHTML = `<div class="h-full flex items-center justify-center text-slate-500 text-sm">กำลังโหลดข้อมูล…</div>`;
+  mainEl.innerHTML = `<div class="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm">กำลังโหลดข้อมูล…</div>`;
 }
 
 function renderBootError() {
   mainEl.innerHTML = `
   <div class="h-full flex flex-col items-center justify-center text-center gap-3">
-    <div class="text-rose-600 font-medium">โหลดข้อมูลไม่สำเร็จ</div>
-    <div class="text-xs text-slate-500 max-w-sm">${esc(store.state.error?.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')}</div>
+    <div class="text-rose-600 dark:text-rose-400 font-medium">โหลดข้อมูลไม่สำเร็จ</div>
+    <div class="text-xs text-slate-500 dark:text-slate-400 max-w-sm">${esc(store.state.error?.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')}</div>
     <button type="button" id="retryBootBtn" class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700">ลองใหม่</button>
   </div>`;
   document.getElementById('retryBootBtn')?.addEventListener('click', boot);
@@ -118,7 +119,22 @@ function bindShellEvents() {
     searchDebounce = setTimeout(() => store.setSearchQuery(value), 250);
   });
 
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+    toggleTheme();
+    updateThemeToggleIcon();
+  });
+
   window.addEventListener('hashchange', renderRoute);
+  // Re-render the current route so already-mounted views pick up the new
+  // theme immediately — mainly for dashboard.view.js's Chart.js canvases,
+  // which read the theme at chart-creation time and otherwise wouldn't
+  // know to redraw.
+  window.addEventListener('themechange', renderRoute);
+}
+
+function updateThemeToggleIcon() {
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = getTheme() === 'dark' ? '☀️' : '🌙';
 }
 
 async function boot() {
@@ -135,6 +151,8 @@ async function boot() {
 }
 
 function init() {
+  initTheme();
+  updateThemeToggleIcon();
   bindShellEvents();
   if (!location.hash) location.hash = DEFAULT_ROUTE;
   boot();

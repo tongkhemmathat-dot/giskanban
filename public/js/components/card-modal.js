@@ -30,25 +30,25 @@ const ACTIVITY_TEXT = {
 };
 
 function activitiesHTML(activities) {
-  if (!activities?.length) return '<div class="text-[11px] text-slate-400">ยังไม่มีกิจกรรม</div>';
+  if (!activities?.length) return '<div class="text-[11px] text-slate-400 dark:text-slate-500">ยังไม่มีกิจกรรม</div>';
   return activities
     .slice(0, 5)
     .map((a) => {
       const describe = ACTIVITY_TEXT[a.action];
       const text = describe ? describe(a.meta) : esc(a.action);
-      return `<div class="text-[11px] text-slate-500 mb-0.5">${esc(a.createdAt || '')} — ${esc(a.actorName || 'ระบบ')} ${text}</div>`;
+      return `<div class="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">${esc(a.createdAt || '')} — ${esc(a.actorName || 'ระบบ')} ${text}</div>`;
     })
     .join('');
 }
 
 function assigneeChipsHTML(assignees) {
-  if (!assignees?.length) return '<span class="text-xs text-slate-400">ยังไม่มีผู้รับผิดชอบ</span>';
+  if (!assignees?.length) return '<span class="text-xs text-slate-400 dark:text-slate-500">ยังไม่มีผู้รับผิดชอบ</span>';
   return assignees
     .map(
       (a) => `
-    <span class="bg-white border border-slate-200 rounded-full px-2 py-0.5 text-xs flex items-center gap-1">
+    <span class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-full px-2 py-0.5 text-xs flex items-center gap-1 dark:text-slate-200">
       ${avatarHTML(a, 'w-4 h-4 text-[8px]')}${esc(a.name)}
-      <button type="button" data-remove-assignee="${a.id}" class="text-slate-300 hover:text-rose-500 ml-0.5" aria-label="ถอน ${esc(a.name)}">✕</button>
+      <button type="button" data-remove-assignee="${a.id}" class="text-slate-300 dark:text-slate-500 hover:text-rose-500 ml-0.5" aria-label="ถอน ${esc(a.name)}">✕</button>
     </span>`,
     )
     .join('');
@@ -60,20 +60,21 @@ function toggleAssigneeLabel(assignees) {
 
 function modalHTML(card) {
   const t = TYPE_META[card.type] || TYPE_META.service_request;
+  const smallInputCls = 'border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1.5 py-0.5 text-xs w-32 min-w-0';
   return `
   <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-0 md:p-4" data-close-on-backdrop>
-    <div class="bg-white md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+    <div class="bg-white dark:bg-slate-800 md:rounded-xl shadow-2xl w-full h-full md:h-auto md:max-w-4xl md:max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
         <div class="flex items-center gap-2">
           <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${esc(t.label)}</span>
-          <span class="text-xs text-slate-400">${esc(card.code)}</span>
+          <span class="text-xs text-slate-400 dark:text-slate-500">${esc(card.code)}</span>
         </div>
-        <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 text-lg leading-none" aria-label="ปิด">✕</button>
+        <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none" aria-label="ปิด">✕</button>
       </div>
       <div class="flex flex-col md:flex-row">
         <div class="flex-1 p-5 md:w-2/3">
-          <h2 class="text-lg font-semibold mb-2" contenteditable="true" data-field="title">${esc(card.title)}</h2>
-          <textarea class="w-full text-sm border border-slate-200 rounded-md p-2 mb-4 text-slate-600" rows="2" data-field="description" placeholder="รายละเอียด">${esc(card.description || '')}</textarea>
+          <h2 class="text-lg font-semibold mb-2 dark:text-slate-100" contenteditable="true" data-field="title">${esc(card.title)}</h2>
+          <textarea class="w-full text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 rounded-md p-2 mb-4 text-slate-600 dark:text-slate-300" rows="2" data-field="description" placeholder="รายละเอียด">${esc(card.description || '')}</textarea>
 
           <div class="mb-5" data-subtasks-root></div>
 
@@ -81,41 +82,41 @@ function modalHTML(card) {
           <div data-attachments-root></div>
         </div>
 
-        <div class="bg-slate-50 p-5 md:w-1/3 space-y-4">
+        <div class="bg-slate-50 dark:bg-slate-900/40 p-5 md:w-1/3 space-y-4">
           <div>
-            <div class="text-xs text-slate-500 mb-1">✍️ ผู้สร้างใบงาน</div>
-            <div class="bg-white border border-indigo-100 rounded-lg px-3 py-2 flex items-center gap-2">
-              ${avatarHTML(card.creator)}<span class="font-medium text-sm">${esc(card.creator?.name || '—')}</span>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">✍️ ผู้สร้างใบงาน</div>
+            <div class="bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800 rounded-lg px-3 py-2 flex items-center gap-2">
+              ${avatarHTML(card.creator)}<span class="font-medium text-sm dark:text-slate-100">${esc(card.creator?.name || '—')}</span>
             </div>
           </div>
           <div>
-            <div class="text-xs text-slate-500 mb-1">ผู้รับผิดชอบ</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">ผู้รับผิดชอบ</div>
             <div data-assignees-list class="flex flex-wrap gap-1 mb-1">${assigneeChipsHTML(card.assignees)}</div>
-            <button type="button" data-toggle-assignee class="text-xs text-indigo-600 hover:underline" ${!store.state.me ? 'disabled title="เลือก ฉันคือ ก่อน"' : ''}>
+            <button type="button" data-toggle-assignee class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline" ${!store.state.me ? 'disabled title="เลือก ฉันคือ ก่อน"' : ''}>
               ${toggleAssigneeLabel(card.assignees)}
             </button>
           </div>
           <div data-labels-root></div>
           <div>
-            <div class="text-xs text-slate-500 mb-1">ความสำคัญ</div>
-            <select data-field="priority" class="w-full border border-slate-300 rounded-md text-sm px-2 py-1.5">
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">ความสำคัญ</div>
+            <select data-field="priority" class="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5">
               ${Object.entries(PRIORITY_META).map(([k, v]) => `<option value="${k}" ${card.priority === k ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}
             </select>
           </div>
-          <div class="text-xs space-y-1.5">
-            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">กำหนดเสร็จ:</span><input type="datetime-local" data-field="dueDate" value="${card.dueDate || ''}" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs min-w-0"></div>
-            <div><span class="text-slate-500">SLA ครบกำหนด:</span> <span data-sla-due>${esc(card.slaDueAt || '—')}</span></div>
-            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">Site:</span><input data-field="site" value="${esc(card.site || '')}" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0"></div>
-            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">Device:</span><input data-field="deviceRef" value="${esc(card.deviceRef || '')}" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0"></div>
-            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">ลูกค้า:</span><input data-field="customer" value="${esc(card.customer || '')}" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0"></div>
-            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 shrink-0">เลขโครงการ:</span><input data-field="projectCode" value="${esc(card.projectCode || '')}" placeholder="E26-1234" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs w-32 min-w-0 uppercase"></div>
+          <div class="text-xs space-y-1.5 dark:text-slate-300">
+            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 dark:text-slate-400 shrink-0">กำหนดเสร็จ:</span><input type="datetime-local" data-field="dueDate" value="${card.dueDate || ''}" class="${smallInputCls}"></div>
+            <div><span class="text-slate-500 dark:text-slate-400">SLA ครบกำหนด:</span> <span data-sla-due>${esc(card.slaDueAt || '—')}</span></div>
+            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 dark:text-slate-400 shrink-0">Site:</span><input data-field="site" value="${esc(card.site || '')}" class="${smallInputCls}"></div>
+            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 dark:text-slate-400 shrink-0">Device:</span><input data-field="deviceRef" value="${esc(card.deviceRef || '')}" class="${smallInputCls}"></div>
+            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 dark:text-slate-400 shrink-0">ลูกค้า:</span><input data-field="customer" value="${esc(card.customer || '')}" class="${smallInputCls}"></div>
+            <div class="flex items-center justify-between gap-2"><span class="text-slate-500 dark:text-slate-400 shrink-0">เลขโครงการ:</span><input data-field="projectCode" value="${esc(card.projectCode || '')}" placeholder="E26-1234" class="${smallInputCls} uppercase"></div>
           </div>
           <div data-timelogs-root></div>
           <div>
-            <div class="text-xs text-slate-500 mb-1">📜 กิจกรรมล่าสุด</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">📜 กิจกรรมล่าสุด</div>
             <div data-activities>${activitiesHTML(card.activities)}</div>
           </div>
-          <button type="button" data-delete-card class="text-xs text-rose-600 hover:underline">🗑 ลบใบงาน</button>
+          <button type="button" data-delete-card class="text-xs text-rose-600 dark:text-rose-400 hover:underline">🗑 ลบใบงาน</button>
         </div>
       </div>
     </div>

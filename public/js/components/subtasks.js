@@ -10,18 +10,18 @@ import { esc } from './card.js';
 
 function subtaskRowHTML(s) {
   const trailing = s.isDone
-    ? `<span class="text-[11px] text-slate-400 shrink-0">โดย ${esc(s.doneBy || '')}</span>`
+    ? `<span class="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">โดย ${esc(s.doneBy || '')}</span>`
     : s.assignee
-      ? `<span class="text-[11px] text-slate-400 shrink-0">${esc(s.assignee.name)}</span>`
+      ? `<span class="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">${esc(s.assignee.name)}</span>`
       : '';
   return `
   <div class="subtask-row flex items-center gap-2 py-1.5 group" data-sub-id="${s.id}">
-    <span class="cursor-grab text-slate-300 handle" aria-hidden="true">⠿</span>
+    <span class="cursor-grab text-slate-300 dark:text-slate-600 handle" aria-hidden="true">⠿</span>
     <input type="checkbox" ${s.isDone ? 'checked' : ''} data-toggle class="w-4 h-4 accent-indigo-600 shrink-0" aria-label="ติ๊กเสร็จ ${esc(s.title)}">
-    <span class="flex-1 text-sm ${s.isDone ? 'line-through text-slate-400' : ''}" data-edit-title>${esc(s.title)}</span>
+    <span class="flex-1 text-sm ${s.isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'dark:text-slate-200'}" data-edit-title>${esc(s.title)}</span>
     ${trailing}
     <div class="subtask-actions opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0">
-      <button type="button" data-delete class="text-slate-400 hover:text-rose-500 text-xs" aria-label="ลบขั้นตอน ${esc(s.title)}">🗑</button>
+      <button type="button" data-delete class="text-slate-400 dark:text-slate-500 hover:text-rose-500 text-xs" aria-label="ลบขั้นตอน ${esc(s.title)}">🗑</button>
     </div>
   </div>`;
 }
@@ -30,15 +30,15 @@ function blockHTML(progress, subtasks, templates) {
   const bar = progress.pct === 100 ? 'bg-emerald-500' : 'bg-indigo-500';
   return `
   <div class="flex items-center justify-between mb-2">
-    <span class="font-medium text-sm">✅ ขั้นตอนการทำงาน ${progress.total ? `· ${progress.done}/${progress.total} · ${progress.pct}%` : ''}</span>
-    <select data-template class="text-xs border border-slate-300 rounded px-1.5 py-1" aria-label="ใช้แม่แบบขั้นตอน">
+    <span class="font-medium text-sm dark:text-slate-100">✅ ขั้นตอนการทำงาน ${progress.total ? `· ${progress.done}/${progress.total} · ${progress.pct}%` : ''}</span>
+    <select data-template class="text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1.5 py-1" aria-label="ใช้แม่แบบขั้นตอน">
       <option value="">＋ ใช้แม่แบบ</option>
       ${templates.map((t) => `<option value="${esc(t.slug)}">${esc(t.name)}</option>`).join('')}
     </select>
   </div>
-  ${progress.total ? `<div class="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2"><div class="h-full ${bar} progress-bar-fill" style="width:${progress.pct}%"></div></div>` : ''}
+  ${progress.total ? `<div class="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-2"><div class="h-full ${bar} progress-bar-fill" style="width:${progress.pct}%"></div></div>` : ''}
   <div data-subtask-list>${subtasks.map(subtaskRowHTML).join('')}</div>
-  <textarea data-new-subtask placeholder="พิมพ์ขั้นตอนแล้วกด Enter · วางหลายบรรทัดพร้อมกันได้" class="w-full text-sm border border-dashed border-slate-300 rounded-md p-2 mt-2" rows="2"></textarea>
+  <textarea data-new-subtask placeholder="พิมพ์ขั้นตอนแล้วกด Enter · วางหลายบรรทัดพร้อมกันได้" class="w-full text-sm border border-dashed border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md p-2 mt-2" rows="2"></textarea>
   <button type="button" data-add-subtask class="mt-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700">เพิ่ม</button>`;
 }
 
@@ -150,7 +150,7 @@ export function mountSubtasksBlock(container, { cardId, subtasks, progress, temp
     if (!current) return;
     const input = document.createElement('input');
     input.value = current.title;
-    input.className = 'flex-1 text-sm border border-indigo-300 rounded px-1';
+    input.className = 'flex-1 text-sm border border-indigo-300 dark:border-indigo-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1';
     el.replaceWith(input);
     input.focus();
     input.select();

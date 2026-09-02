@@ -10,17 +10,17 @@ import { esc } from './card.js';
 
 function rowHTML(t) {
   return `
-  <div class="text-xs mb-0.5 flex items-center justify-between gap-2 group" data-timelog-id="${t.id}">
+  <div class="text-xs mb-0.5 flex items-center justify-between gap-2 group dark:text-slate-300" data-timelog-id="${t.id}">
     <span>${esc(t.member.name)} · ${t.hours} ชม.${t.note ? ' — ' + esc(t.note) : ''}</span>
-    <button type="button" data-delete-timelog class="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 shrink-0" aria-label="ลบรายการบันทึกเวลานี้">✕</button>
+    <button type="button" data-delete-timelog class="text-slate-300 dark:text-slate-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 shrink-0" aria-label="ลบรายการบันทึกเวลานี้">✕</button>
   </div>`;
 }
 
 function formHTML() {
   return `
   <div class="flex items-center gap-1 mt-1">
-    <input type="number" data-hours step="0.25" min="0.25" max="24" placeholder="ชม." class="w-16 border border-slate-200 rounded px-1.5 py-0.5 text-xs">
-    <input type="text" data-note placeholder="หมายเหตุ" class="flex-1 border border-slate-200 rounded px-1.5 py-0.5 text-xs min-w-0">
+    <input type="number" data-hours step="0.25" min="0.25" max="24" placeholder="ชม." class="w-16 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1.5 py-0.5 text-xs">
+    <input type="text" data-note placeholder="หมายเหตุ" class="flex-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1.5 py-0.5 text-xs min-w-0">
     <button type="button" data-save-timelog class="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded hover:bg-indigo-700 shrink-0">บันทึก</button>
   </div>`;
 }
@@ -28,9 +28,9 @@ function formHTML() {
 function blockHTML(list, formOpen) {
   const total = list.reduce((sum, t) => sum + t.hours, 0);
   return `
-  <div class="text-xs text-slate-500 mb-1">⏱ บันทึกเวลา (${total} ชม.)</div>
+  <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">⏱ บันทึกเวลา (${total} ชม.)</div>
   <div data-timelog-list>${list.map(rowHTML).join('')}</div>
-  ${formOpen ? formHTML() : '<button type="button" data-open-timelog-form class="text-xs text-indigo-600 hover:underline mt-1">+ บันทึกเวลา</button>'}`;
+  ${formOpen ? formHTML() : '<button type="button" data-open-timelog-form class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mt-1">+ บันทึกเวลา</button>'}`;
 }
 
 /** mountTimeLogsBlock(container, { cardId, timeLogs }) -> { destroy() } */

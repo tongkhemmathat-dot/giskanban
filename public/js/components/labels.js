@@ -18,7 +18,7 @@ function chipHTML(l) {
 
 function pickerHTML(available) {
   return `
-  <select data-label-picker class="text-xs border border-slate-300 rounded px-1.5 py-1 mt-1" aria-label="เพิ่มป้ายกำกับ">
+  <select data-label-picker class="text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded px-1.5 py-1 mt-1" aria-label="เพิ่มป้ายกำกับ">
     <option value="">+ ป้ายกำกับ</option>
     ${available.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}
     <option value="__new__">+ สร้างใหม่…</option>
@@ -29,7 +29,7 @@ function blockHTML(labels) {
   const attachedIds = new Set(labels.map((l) => l.id));
   const available = store.state.labels.filter((l) => !attachedIds.has(l.id));
   return `
-  <div class="text-xs text-slate-500 mb-1">🏷 ป้ายกำกับ</div>
+  <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">🏷 ป้ายกำกับ</div>
   <div data-label-chips class="flex flex-wrap gap-1 mb-1">${labels.map(chipHTML).join('')}</div>
   ${pickerHTML(available)}`;
 }

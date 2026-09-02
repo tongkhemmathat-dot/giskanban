@@ -43,13 +43,13 @@ function columnHTML(list) {
   // near-viewport-width + scroll-snap so columns page one at a time,
   // tablet (768-1279px) fixed 260px, desktop (>=1280px) the original 288px.
   return `
-  <div class="flex-shrink-0 w-[85vw] md:w-[260px] xl:w-72 snap-start bg-slate-200/60 rounded-xl flex flex-col max-h-full">
+  <div class="flex-shrink-0 w-[85vw] md:w-[260px] xl:w-72 snap-start bg-slate-200/60 dark:bg-slate-800/60 rounded-xl flex flex-col max-h-full">
     <div class="px-3 py-2 flex items-center justify-between">
-      <span class="font-semibold text-slate-700 text-sm">${esc(list.name)}</span>
-      <span class="text-xs font-medium ${overLimit ? 'text-rose-600' : 'text-slate-500'}">${count}${list.wipLimit ? `/${list.wipLimit}` : ''}</span>
+      <span class="font-semibold text-slate-700 dark:text-slate-200 text-sm">${esc(list.name)}</span>
+      <span class="text-xs font-medium ${overLimit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}">${count}${list.wipLimit ? `/${list.wipLimit}` : ''}</span>
     </div>
     <div class="col-body flex-1 overflow-y-auto px-2 pb-1" data-list-id="${list.id}">${cards.map(cardHTML).join('')}</div>
-    <button type="button" data-add-list-id="${list.id}" class="add-card-btn mx-2 mb-2 text-xs text-slate-500 hover:text-indigo-600 hover:bg-white rounded py-1.5 text-left px-2">+ เพิ่มใบงาน</button>
+    <button type="button" data-add-list-id="${list.id}" class="add-card-btn mx-2 mb-2 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 rounded py-1.5 text-left px-2">+ เพิ่มใบงาน</button>
   </div>`;
 }
 

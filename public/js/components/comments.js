@@ -10,22 +10,22 @@ function commentHTML(c) {
   return `
   <div class="flex gap-2 mb-2" data-comment-id="${c.id}">
     ${avatarHTML(c.author)}
-    <div class="bg-slate-50 rounded-lg px-3 py-1.5 flex-1">
-      <div class="text-xs font-medium flex items-center justify-between gap-2">
-        <span>${esc(c.author.name)} <span class="text-slate-400 font-normal">${esc(c.createdAt || '')}</span></span>
-        <button type="button" data-delete-comment class="text-slate-300 hover:text-rose-500 shrink-0" aria-label="ลบความคิดเห็นนี้">✕</button>
+    <div class="bg-slate-50 dark:bg-slate-700 rounded-lg px-3 py-1.5 flex-1">
+      <div class="text-xs font-medium flex items-center justify-between gap-2 dark:text-slate-200">
+        <span>${esc(c.author.name)} <span class="text-slate-400 dark:text-slate-500 font-normal">${esc(c.createdAt || '')}</span></span>
+        <button type="button" data-delete-comment class="text-slate-300 dark:text-slate-500 hover:text-rose-500 shrink-0" aria-label="ลบความคิดเห็นนี้">✕</button>
       </div>
-      <div class="text-sm">${esc(c.body)}</div>
+      <div class="text-sm dark:text-slate-300">${esc(c.body)}</div>
     </div>
   </div>`;
 }
 
 function blockHTML(list) {
   return `
-  <div class="font-medium text-sm mb-2">💬 ความคิดเห็น</div>
-  <div data-comment-list>${list.map(commentHTML).join('') || '<div class="text-xs text-slate-400 mb-2">ยังไม่มีความคิดเห็น</div>'}</div>
+  <div class="font-medium text-sm mb-2 dark:text-slate-100">💬 ความคิดเห็น</div>
+  <div data-comment-list>${list.map(commentHTML).join('') || '<div class="text-xs text-slate-400 dark:text-slate-500 mb-2">ยังไม่มีความคิดเห็น</div>'}</div>
   <div class="flex gap-2 mt-2">
-    <textarea data-new-comment rows="1" placeholder="แสดงความคิดเห็น..." class="flex-1 text-sm border border-slate-200 rounded-md p-2"></textarea>
+    <textarea data-new-comment rows="1" placeholder="แสดงความคิดเห็น..." class="flex-1 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md p-2"></textarea>
     <button type="button" data-send-comment class="text-xs bg-indigo-600 text-white px-3 rounded-md hover:bg-indigo-700">ส่ง</button>
   </div>`;
 }

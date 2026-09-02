@@ -7,52 +7,71 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // Apply the dark/light choice before first paint (avoids a flash of the
+  // wrong theme) — public/js/theme.js's initTheme() re-derives the exact
+  // same choice on module load, so the two never disagree.
+  (function () {
+    try {
+      var stored = localStorage.getItem('jc_theme');
+      var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (dark) document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Play CDN has no config file — this is its documented way to opt into
+  // class-based dark mode (toggled via the `dark` class on <html> above)
+  // instead of the default media-query-only strategy.
+  tailwind.config = { darkMode: 'class' };
+</script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="bg-slate-100 text-slate-800 text-sm">
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm">
   <!-- Responsive per docs/06-ui-spec.md §10: >=1280px (xl:) full sidebar with
        labels; 768-1279px (md:) sidebar collapses to icons-only, 260px board
        columns; <768px (default, mobile-first) sidebar becomes a bottom nav
        bar via flex order, board columns snap-scroll one at a time. -->
   <div id="app" class="flex flex-col md:flex-row" style="height:100vh">
-    <aside class="order-2 md:order-1 w-full md:w-14 xl:w-52 h-14 md:h-auto bg-white border-t md:border-t-0 md:border-r border-slate-200 flex flex-row md:flex-col shrink-0">
-      <div class="hidden md:flex items-center justify-center xl:justify-start gap-2 px-2 xl:px-4 py-4 font-semibold text-indigo-600 text-lg">
+    <aside class="order-2 md:order-1 w-full md:w-14 xl:w-52 h-14 md:h-auto bg-white dark:bg-slate-800 border-t md:border-t-0 md:border-r border-slate-200 dark:border-slate-700 flex flex-row md:flex-col shrink-0">
+      <div class="hidden md:flex items-center justify-center xl:justify-start gap-2 px-2 xl:px-4 py-4 font-semibold text-indigo-600 dark:text-indigo-400 text-lg">
         <span>📋</span><span class="hidden xl:inline">JobCard Pro</span>
       </div>
       <nav id="sidebarNav" class="flex-1 flex flex-row md:flex-col items-center md:items-stretch justify-around md:justify-start px-2 md:space-y-1">
-        <a href="#/board" data-route="#/board" aria-label="Board" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+        <a href="#/board" data-route="#/board" aria-label="Board" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
           <span>📋</span><span class="text-[10px] md:hidden xl:inline">Board</span>
         </a>
-        <a href="#/dashboard" data-route="#/dashboard" aria-label="Dashboard" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+        <a href="#/dashboard" data-route="#/dashboard" aria-label="Dashboard" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
           <span>📊</span><span class="text-[10px] md:hidden xl:inline">Dashboard</span>
         </a>
-        <a href="#/mytasks" data-route="#/mytasks" aria-label="My Tasks" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+        <a href="#/mytasks" data-route="#/mytasks" aria-label="My Tasks" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
           <span>✅</span><span class="text-[10px] md:hidden xl:inline">My Tasks</span>
         </a>
-        <a href="#/members" data-route="#/members" aria-label="Members" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+        <a href="#/members" data-route="#/members" aria-label="Members" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
           <span>👥</span><span class="text-[10px] md:hidden xl:inline">Members</span>
         </a>
-        <a href="#/templates" data-route="#/templates" aria-label="Templates" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 hover:bg-slate-50 text-sm">
+        <a href="#/templates" data-route="#/templates" aria-label="Templates" class="nav-link flex flex-col md:flex-row items-center justify-center xl:justify-start gap-0.5 xl:gap-2 px-2 xl:px-3 py-1.5 md:py-2.5 xl:py-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm">
           <span>🗂</span><span class="text-[10px] md:hidden xl:inline">แม่แบบ</span>
         </a>
       </nav>
     </aside>
     <div class="order-1 md:order-2 flex-1 flex flex-col overflow-hidden min-h-0">
-      <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3 flex-wrap">
-        <input id="searchInput" aria-label="ค้นหา" placeholder="🔍 ค้นหา (ชื่องาน / site / device / code / ผู้สร้าง)" class="border border-slate-300 rounded-md text-sm px-3 py-1.5 w-40 md:w-72">
+      <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2.5 flex items-center gap-3 flex-wrap">
+        <input id="searchInput" aria-label="ค้นหา" placeholder="🔍 ค้นหา (ชื่องาน / site / device / code / ผู้สร้าง)" class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-3 py-1.5 w-40 md:w-72">
         <div class="flex-1"></div>
-        <label class="text-xs text-slate-500" for="meSelect">ฉันคือ</label>
-        <select id="meSelect" class="border border-slate-300 rounded-md text-sm px-2 py-1.5">
+        <label class="text-xs text-slate-500 dark:text-slate-400" for="meSelect">ฉันคือ</label>
+        <select id="meSelect" class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1.5">
           <option value="">— เลือกชื่อ —</option>
         </select>
-        <button id="addMemberBtn" type="button" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 hover:bg-slate-50" aria-label="เพิ่มชื่อใหม่">+ ชื่อใหม่</button>
+        <button id="addMemberBtn" type="button" class="text-xs border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700" aria-label="เพิ่มชื่อใหม่">+ ชื่อใหม่</button>
+        <button id="themeToggleBtn" type="button" class="text-xs border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700" aria-label="สลับโหมดมืด/สว่าง">🌙</button>
         <button id="createCardBtn" type="button" class="bg-indigo-600 text-white text-sm px-3 py-1.5 rounded-md hover:bg-indigo-700 shrink-0">+ สร้างใบงาน</button>
       </header>
       <main id="main-content" class="flex-1 overflow-auto p-4">
-        <div class="h-full flex items-center justify-center text-slate-500 text-sm">กำลังโหลดข้อมูล…</div>
+        <div class="h-full flex items-center justify-center text-slate-500 dark:text-slate-400 text-sm">กำลังโหลดข้อมูล…</div>
       </main>
     </div>
   </div>

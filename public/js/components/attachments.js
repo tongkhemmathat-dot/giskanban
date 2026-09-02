@@ -18,19 +18,19 @@ function formatSize(bytes) {
 
 function attachmentHTML(a) {
   return `
-  <div class="flex items-center gap-2 mb-1 text-sm" data-attachment-id="${a.id}">
+  <div class="flex items-center gap-2 mb-1 text-sm dark:text-slate-200" data-attachment-id="${a.id}">
     <a href="/api/attachments/${a.id}/download" class="flex-1 hover:underline truncate">📄 ${esc(a.filename)}</a>
-    <span class="text-xs text-slate-400 shrink-0">${formatSize(a.size)} · โดย ${esc(a.uploader?.name || '—')}</span>
-    <button type="button" data-delete-attachment class="text-slate-400 hover:text-rose-500 text-xs shrink-0" aria-label="ลบไฟล์แนบ ${esc(a.filename)}">🗑</button>
+    <span class="text-xs text-slate-400 dark:text-slate-500 shrink-0">${formatSize(a.size)} · โดย ${esc(a.uploader?.name || '—')}</span>
+    <button type="button" data-delete-attachment class="text-slate-400 dark:text-slate-500 hover:text-rose-500 text-xs shrink-0" aria-label="ลบไฟล์แนบ ${esc(a.filename)}">🗑</button>
   </div>`;
 }
 
 function blockHTML(list) {
   return `
-  <div class="font-medium text-sm mb-2">📎 ไฟล์แนบ</div>
-  <div data-attachment-list>${list.map(attachmentHTML).join('') || '<div class="text-xs text-slate-400 mb-2">ยังไม่มีไฟล์แนบ</div>'}</div>
+  <div class="font-medium text-sm mb-2 dark:text-slate-100">📎 ไฟล์แนบ</div>
+  <div data-attachment-list>${list.map(attachmentHTML).join('') || '<div class="text-xs text-slate-400 dark:text-slate-500 mb-2">ยังไม่มีไฟล์แนบ</div>'}</div>
   <input type="file" data-file-input class="hidden">
-  <button type="button" data-add-attachment class="text-xs border border-slate-300 rounded-md px-3 py-1.5 hover:bg-slate-50">+ แนบไฟล์</button>`;
+  <button type="button" data-add-attachment class="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">+ แนบไฟล์</button>`;
 }
 
 /** mountAttachmentsBlock(container, { cardId, attachments }) -> { destroy() } */
