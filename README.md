@@ -29,11 +29,25 @@ npm run dev
 # เปิด http://localhost:3000
 ```
 
-### รันด้วย Docker
+### รันด้วย Docker (ขึ้นระบบจริง)
 
 ```bash
+git clone <repo> && cd jobcard-pro
+cp .env.example .env && nano .env      # ตั้ง DOMAIN + TEAM_PASSWORD_HASH (ดูวิธีสร้าง hash ด้านล่าง)
 docker compose up -d --build
+docker compose exec app npm run seed   # ครั้งแรกเท่านั้น — migrate รันอัตโนมัติตอน start
+docker compose logs -f app
 ```
+
+สร้าง hash รหัสผ่านสำหรับ `TEAM_PASSWORD_HASH`:
+
+```bash
+docker run --rm caddy caddy hash-password --plaintext 'รหัสของทีม'
+```
+
+`docker compose exec app curl -f http://localhost:3000/api/health` เช็คได้ว่า container ตอบ 200 (ปกติ) หรือ 503 (DB มีปัญหา) — ใช้ค่าเดียวกับที่ Docker healthcheck ใช้ตัดสินสถานะ container
+
+**ก่อนขึ้นใช้จริง** อ่าน [`docs/09-deployment.md`](./docs/09-deployment.md) ให้ครบ โดยเฉพาะ §7 (สำรองข้อมูลอัตโนมัติ) และ §8 (checklist ก่อน production) — README นี้ให้แค่คำสั่งเริ่มต้น ไม่ใช่คู่มือ deploy ฉบับเต็ม
 
 ### Deploy demo บน Vercel
 

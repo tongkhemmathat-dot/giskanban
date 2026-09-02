@@ -54,6 +54,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      # /api/health คืน 503 (ไม่ใช่ 200) เมื่อต่อ DB ไม่ได้ (docs/04-api.md §10) —
+      # wget ถือว่า non-2xx = fetch ล้มเหลว จึงทำให้ Docker เห็นว่า container
+      # ไม่ healthy จริง ๆ ไม่ใช่แค่ตอบ 200 เฉย ๆ ไม่ว่า DB จะพังหรือไม่
 
   caddy:
     image: caddy:2-alpine

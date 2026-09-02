@@ -109,8 +109,8 @@
 - [x] **6.2** `docker-compose.yml` + volume `./data`
 - [x] **6.3** `Caddyfile` + Basic Auth + TLS
 - [x] **6.4** สคริปต์ backup รายวัน (`sqlite3 .backup`) เก็บ 14 วัน
-- [ ] **6.5** `GET /api/health` เชื่อมกับ Docker healthcheck
-- [ ] **6.6** อัปเดต README ส่วนติดตั้งจริง
+- [x] **6.5** `GET /api/health` เชื่อมกับ Docker healthcheck
+- [x] **6.6** อัปเดต README ส่วนติดตั้งจริง
 
 ---
 

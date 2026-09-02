@@ -235,3 +235,5 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 ## 10. Health
 
 `GET /api/health` → `{ "ok": true, "db": "connected", "version": "1.0.0", "uptime": 3600 }`
+
+DB ต่อไม่ได้ → **503** `{ "ok": false, "db": "error", "version": "1.0.0", "uptime": 3600 }` — สถานะ HTTP (ไม่ใช่แค่ `ok`) ต้องไม่ใช่ 200 เพื่อให้ Docker healthcheck (`docker-compose.yml`, ใช้ `wget`) ตรวจจับได้ว่า container ไม่ healthy

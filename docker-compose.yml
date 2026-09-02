@@ -10,6 +10,10 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      # /api/health returns 503 (not 200) when the DB is unreachable
+      # (docs/04-api.md §10) — wget treats any non-2xx response as a failed
+      # fetch, so Docker actually sees the container as unhealthy instead of
+      # always passing regardless of DB state.
 
   caddy:
     image: caddy:2-alpine

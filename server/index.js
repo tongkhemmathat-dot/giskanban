@@ -35,7 +35,12 @@ app.get('/api/health', (req, res) => {
   } catch {
     dbConnected = false;
   }
-  res.json({
+  // 503 (not 200) when the DB is unreachable — docker-compose.yml's
+  // healthcheck runs `wget -qO- .../api/health`, and wget treats any non-2xx
+  // response as a failed check, which is what actually lets Docker detect and
+  // report an unhealthy container (docs/07-roadmap.md 6.5). A 200 here no
+  // matter what would make that healthcheck always pass.
+  res.status(dbConnected ? 200 : 503).json({
     ok: dbConnected,
     db: dbConnected ? 'connected' : 'error',
     version: VERSION,
