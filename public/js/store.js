@@ -123,6 +123,13 @@ function upsertMemberLocal(member) {
   emit();
 }
 
+function removeMemberLocal(id) {
+  const idx = state.members.findIndex((m) => m.id === id);
+  if (idx < 0) return;
+  state.members.splice(idx, 1);
+  emit();
+}
+
 function addCardLocal(card) {
   if (!card) return;
   state.cards.push(card);
@@ -197,6 +204,7 @@ export const store = {
   getList,
   moveCardLocal,
   upsertMemberLocal,
+  removeMemberLocal,
   addCardLocal,
   updateCardLocal,
   removeCardLocal,
