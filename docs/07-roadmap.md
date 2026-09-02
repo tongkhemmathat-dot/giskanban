@@ -116,9 +116,9 @@
 
 ## ทำทีหลัง (Backlog)
 
-- แจ้งเตือน Line Notify เมื่องานใกล้ชน SLA
+- แจ้งเตือน Line Notify เมื่องานใกล้ชน SLA — ⚠️ Line Notify ถูกยกเลิกโดย LINE (มี.ค. 2025) ต้องเลือกช่องทางอื่นแทน (email / Slack-Discord webhook) ถ้ายังต้องการ
 - Export CSV / รายงานรายเดือน
 - กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด
-- หน้าจัดการแม่แบบจากในเว็บ
+- [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
 - ใบงานประจำ (recurring) สำหรับงาน PM
 - Dark mode

@@ -10,13 +10,14 @@ import { mountBoard } from './views/board.view.js';
 import { mountMyTasks } from './views/mytasks.view.js';
 import { mountMembers } from './views/members.view.js';
 import { mountDashboard } from './views/dashboard.view.js';
+import { mountTemplates } from './views/templates.view.js';
 import { openCreateModal } from './components/create-modal.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 }
 
-const ROUTES = ['#/board', '#/dashboard', '#/mytasks', '#/members'];
+const ROUTES = ['#/board', '#/dashboard', '#/mytasks', '#/members', '#/templates'];
 const DEFAULT_ROUTE = '#/board';
 
 const mainEl = document.getElementById('main-content');
@@ -72,6 +73,8 @@ function renderRoute() {
     currentUnmount = mountMyTasks(mainEl);
   } else if (hash === '#/members') {
     currentUnmount = mountMembers(mainEl);
+  } else if (hash === '#/templates') {
+    currentUnmount = mountTemplates(mainEl);
   }
 }
 

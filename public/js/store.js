@@ -163,6 +163,30 @@ function bumpCardCount(id, field, delta) {
   updateCardLocal(id, { counts: { ...current, [field]: Math.max(0, (current[field] || 0) + delta) } });
 }
 
+// Same three-function shape as the card mutators above — templates.view.js
+// routes every CRUD response through these so create-modal.js's and
+// subtasks.js's "เลือกแม่แบบ" pickers (both read store.state.templates
+// directly) stay live without needing a full bootstrap re-fetch.
+function addTemplateLocal(template) {
+  if (!template) return;
+  state.templates.push(template);
+  emit();
+}
+
+function updateTemplateLocal(id, patch) {
+  const idx = state.templates.findIndex((t) => t.id === id);
+  if (idx < 0) return;
+  state.templates[idx] = { ...state.templates[idx], ...patch };
+  emit();
+}
+
+function removeTemplateLocal(id) {
+  const idx = state.templates.findIndex((t) => t.id === id);
+  if (idx < 0) return;
+  state.templates.splice(idx, 1);
+  emit();
+}
+
 export const store = {
   state,
   subscribe,
@@ -178,4 +202,7 @@ export const store = {
   removeCardLocal,
   setSearchQuery,
   bumpCardCount,
+  addTemplateLocal,
+  updateTemplateLocal,
+  removeTemplateLocal,
 };
