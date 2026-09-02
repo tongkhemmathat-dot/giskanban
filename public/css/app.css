@@ -35,3 +35,19 @@ textarea { font-family: inherit; }
   outline: 2px solid #6366f1;
   outline-offset: 1px;
 }
+
+/* "ตัวอักษรใหญ่" (large text) toggle for older users (public/js/textsize.js).
+   Bumping the root font-size is enough to scale every rem-based Tailwind
+   text-* / spacing-* utility throughout the whole app (every component file
+   already uses those) for free — no need to touch each file's classes. Only
+   this codebase's few literal-px arbitrary values (text-[8px]/[10px]/[11px],
+   used for avatar initials, mobile nav labels, and card/subtask secondary
+   text) need an explicit override below, since arbitrary px values don't
+   respond to a root font-size change the way rem-based ones do. Each
+   override selector (.large-text .text-\[Npx\]) has higher specificity than
+   Tailwind's own single-class .text-\[Npx\] rule, so cascade order doesn't
+   matter here. */
+html.large-text { font-size: 118%; }
+.large-text .text-\[8px\]  { font-size: 11px; }
+.large-text .text-\[10px\] { font-size: 13px; }
+.large-text .text-\[11px\] { font-size: 14px; }

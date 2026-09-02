@@ -88,9 +88,11 @@ function destroyCharts() {
 // near-black text that's unreadable on a dark card (backlog: dark mode).
 function chartThemeColors() {
   const isDark = document.documentElement.classList.contains('dark');
+  const isLarge = document.documentElement.classList.contains('large-text');
   return {
     tick: isDark ? '#cbd5e1' : '#475569', // slate-300 / slate-600
     grid: isDark ? 'rgba(148,163,184,0.15)' : 'rgba(148,163,184,0.25)',
+    font: { size: isLarge ? 14 : 12 },
   };
 }
 
@@ -105,7 +107,7 @@ function initCharts(root) {
     (m) => store.state.cards.filter((c) => (c.assignees || []).some((a) => a.id === m.id) && !isDoneList(c.listId)).length,
   );
   const created = members.map((m) => store.state.cards.filter((c) => c.creator?.id === m.id).length);
-  const { tick, grid } = chartThemeColors();
+  const { tick, grid, font } = chartThemeColors();
 
   chartWorkload = new Chart(wCtx, {
     type: 'bar',
@@ -113,8 +115,8 @@ function initCharts(root) {
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1, color: tick }, grid: { color: grid } },
-        x: { ticks: { color: tick }, grid: { color: grid } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, color: tick, font }, grid: { color: grid } },
+        x: { ticks: { color: tick, font }, grid: { color: grid } },
       },
     },
   });
@@ -125,8 +127,8 @@ function initCharts(root) {
       indexAxis: 'y',
       plugins: { legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, ticks: { stepSize: 1, color: tick }, grid: { color: grid } },
-        y: { ticks: { color: tick }, grid: { color: grid } },
+        x: { beginAtZero: true, ticks: { stepSize: 1, color: tick, font }, grid: { color: grid } },
+        y: { ticks: { color: tick, font }, grid: { color: grid } },
       },
     },
   });

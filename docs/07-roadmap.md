@@ -122,3 +122,4 @@
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
 - ใบงานประจำ (recurring) สำหรับงาน PM
 - [x] Dark mode — toggle ใน header, จำค่าไว้ (`localStorage jc_theme`), ตาม system preference เป็นค่าเริ่มต้น
+- [x] ตัวอักษรใหญ่ (สำหรับผู้ใช้สูงอายุ) — ปุ่ม "Aa" ใน header เหมือน dark mode toggle, จำค่าไว้ (`localStorage jc_textsize`), ขยาย root font-size 118% (`public/js/textsize.js`, `public/css/app.css`)

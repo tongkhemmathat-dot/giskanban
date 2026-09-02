@@ -13,6 +13,7 @@ import { mountDashboard } from './views/dashboard.view.js';
 import { mountTemplates } from './views/templates.view.js';
 import { openCreateModal } from './components/create-modal.js';
 import { initTheme, toggleTheme, getTheme } from './theme.js';
+import { initTextSize, toggleTextSize, getTextSize } from './textsize.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -127,17 +128,33 @@ function bindShellEvents() {
     updateThemeToggleIcon();
   });
 
+  document.getElementById('textSizeToggleBtn')?.addEventListener('click', () => {
+    toggleTextSize();
+    updateTextSizeToggleState();
+  });
+
   window.addEventListener('hashchange', renderRoute);
   // Re-render the current route so already-mounted views pick up the new
-  // theme immediately — mainly for dashboard.view.js's Chart.js canvases,
-  // which read the theme at chart-creation time and otherwise wouldn't
-  // know to redraw.
+  // theme/text-size immediately — mainly for dashboard.view.js's Chart.js
+  // canvases, which read these at chart-creation time and otherwise
+  // wouldn't know to redraw.
   window.addEventListener('themechange', renderRoute);
+  window.addEventListener('textsizechange', renderRoute);
 }
 
 function updateThemeToggleIcon() {
   const btn = document.getElementById('themeToggleBtn');
   if (btn) btn.textContent = getTheme() === 'dark' ? '☀️' : '🌙';
+}
+
+function updateTextSizeToggleState() {
+  const btn = document.getElementById('textSizeToggleBtn');
+  if (!btn) return;
+  const large = getTextSize() === 'large';
+  btn.setAttribute('aria-pressed', String(large));
+  btn.classList.toggle('bg-indigo-600', large);
+  btn.classList.toggle('text-white', large);
+  btn.classList.toggle('border-indigo-600', large);
 }
 
 // Keeps the "📥 Export CSV" link's target in sync with the current search,
@@ -167,6 +184,8 @@ async function boot() {
 function init() {
   initTheme();
   updateThemeToggleIcon();
+  initTextSize();
+  updateTextSizeToggleState();
   bindShellEvents();
   if (!location.hash) location.hash = DEFAULT_ROUTE;
   boot();
