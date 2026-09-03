@@ -3,7 +3,7 @@
    the mockup is the confirmed-working visual/interaction reference). */
 
 html, body { height: 100%; }
-body { font-family: 'Noto Sans Thai', system-ui, sans-serif; }
+body { font-family: 'Google Sans', system-ui, sans-serif; }
 
 ::-webkit-scrollbar { height: 8px; width: 8px; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
