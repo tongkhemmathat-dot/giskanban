@@ -34,19 +34,34 @@ function cardsForList(listId) {
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
+// คำอธิบายภาษาไทยของแต่ละคอลัมน์ ผูกกับ slug ที่ seed ไว้คงที่ (server/db/seed.js)
+// ใช้เป็น subtitle ใต้ชื่อคอลัมน์ ไม่แก้ชื่อจริงใน DB
+const LIST_DESCRIPTIONS = {
+  backlog: 'งานที่รอเข้าคิว ยังไม่เริ่มทำ',
+  todo: 'งานที่พร้อมเริ่มทำได้เลย',
+  doing: 'กำลังดำเนินการอยู่',
+  waiting: 'รอฝั่งผู้ให้บริการ/หน่วยงานภายนอก',
+  review: 'ทำเสร็จแล้ว รอตรวจสอบ',
+  done: 'เสร็จสมบูรณ์',
+};
+
 function columnHTML(list) {
   const cards = cardsForList(list.id);
   const count = cards.length;
   const overLimit = Boolean(list.wipLimit) && count > list.wipLimit;
+  const description = LIST_DESCRIPTIONS[list.slug];
 
   // Responsive column width per docs/06-ui-spec.md §10: mobile (<768px)
   // near-viewport-width + scroll-snap so columns page one at a time,
   // tablet (768-1279px) fixed 260px, desktop (>=1280px) the original 288px.
   return `
   <div class="flex-shrink-0 w-[85vw] md:w-[260px] xl:w-72 snap-start bg-slate-200/60 dark:bg-slate-800/60 rounded-xl flex flex-col max-h-full">
-    <div class="px-3 py-2 flex items-center justify-between">
-      <span class="font-semibold text-slate-700 dark:text-slate-200 text-sm">${esc(list.name)}</span>
-      <span class="text-xs font-medium ${overLimit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}">${count}${list.wipLimit ? `/${list.wipLimit}` : ''}</span>
+    <div class="px-3 py-2">
+      <div class="flex items-center justify-between">
+        <span class="font-semibold text-slate-700 dark:text-slate-200 text-sm">${esc(list.name)}</span>
+        <span class="text-xs font-medium ${overLimit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}">${count}${list.wipLimit ? `/${list.wipLimit}` : ''}</span>
+      </div>
+      ${description ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${esc(description)}</div>` : ''}
     </div>
     <div class="col-body flex-1 overflow-y-auto px-2 pb-1" data-list-id="${list.id}">${cards.map(cardHTML).join('')}</div>
     <button type="button" data-add-list-id="${list.id}" class="add-card-btn mx-2 mb-2 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 rounded py-1.5 text-left px-2">+ เพิ่มใบงาน</button>
