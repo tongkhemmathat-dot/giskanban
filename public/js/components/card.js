@@ -62,10 +62,18 @@ function slaChipHTML(card) {
 // ticks/comments/etc. too, not just card-field edits or moves.
 const STALE_DAYS = 3;
 
-function staleDaysHTML(card) {
-  if (card.slaStatus === 'done' || !card.lastActivityAt) return '';
+// Exported so board.view.js's "ค้างนาน" quick filter (docs/07-roadmap.md
+// backlog) uses the exact same rule as the badge below instead of a second
+// copy of the threshold logic.
+export function staleDays(card) {
+  if (card.slaStatus === 'done' || !card.lastActivityAt) return null;
   const days = Math.floor((Date.now() - new Date(card.lastActivityAt).getTime()) / 86400000);
-  if (days < STALE_DAYS) return '';
+  return days >= STALE_DAYS ? days : null;
+}
+
+function staleDaysHTML(card) {
+  const days = staleDays(card);
+  if (days == null) return '';
   return `<div class="text-[11px] text-amber-600 dark:text-amber-400 pl-2 mt-1 flex items-center gap-1">🕸 ไม่มีความเคลื่อนไหว ${days} วัน</div>`;
 }
 

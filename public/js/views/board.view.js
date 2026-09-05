@@ -10,7 +10,7 @@
 import { store, midPosition, GAP } from '../store.js';
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
-import { cardHTML, esc } from '../components/card.js';
+import { cardHTML, esc, staleDays } from '../components/card.js';
 import { openCreateModal } from '../components/create-modal.js';
 import { openCardModal } from '../components/card-modal.js';
 
@@ -27,7 +27,8 @@ const selectedIds = new Set();
 let rerenderBoard = () => {};
 
 // docs/06-ui-spec.md §1's single search box covers title/site/device/code/creator
-// (docs/07-roadmap.md 4.9) — no separate filter dropdowns are specified.
+// (docs/07-roadmap.md 4.9). The quick-filter chips below (backlog idea) are a
+// second, independent filter dimension that ANDs with this search box.
 function matchesSearch(card, query) {
   if (!query) return true;
   const needle = query.toLowerCase();
@@ -36,10 +37,33 @@ function matchesSearch(card, query) {
     .some((v) => String(v).toLowerCase().includes(needle));
 }
 
+// One-at-a-time quick filter (docs/07-roadmap.md backlog: "ปุ่มกรองด่วนบน
+// board") — click again to clear. Pure frontend: every field it reads
+// (priority/slaStatus/creator/assignees/lastActivityAt) is already in every
+// card from GET /api/bootstrap, no new endpoint or query param needed.
+let quickFilter = null; // null | 'mine' | 'critical' | 'overdue' | 'stale'
+const QUICK_FILTERS = [
+  { key: 'mine', label: '👤 ของฉัน' },
+  { key: 'critical', label: '🔴 วิกฤต' },
+  { key: 'overdue', label: '⏰ เกินกำหนด' },
+  { key: 'stale', label: '🕸 ค้างนาน' },
+];
+
+function matchesQuickFilter(card) {
+  if (quickFilter === 'mine') {
+    const me = store.state.me;
+    return !!me && (card.creator?.name === me || (card.assignees || []).some((a) => a.name === me));
+  }
+  if (quickFilter === 'critical') return card.priority === 'critical';
+  if (quickFilter === 'overdue') return card.slaStatus === 'overdue';
+  if (quickFilter === 'stale') return staleDays(card) != null;
+  return true;
+}
+
 function cardsForList(listId) {
   const query = store.state.searchQuery;
   return store.state.cards
-    .filter((c) => c.listId === listId && matchesSearch(c, query))
+    .filter((c) => c.listId === listId && matchesSearch(c, query) && matchesQuickFilter(c))
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
@@ -150,9 +174,21 @@ async function handleDrop(evt) {
   }
 }
 
+function quickFilterBarHTML() {
+  return QUICK_FILTERS.map((f) => {
+    const active = quickFilter === f.key;
+    return `<button type="button" data-quick-filter="${f.key}" class="text-xs rounded-full px-2.5 py-1 border ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}">${f.label}</button>`;
+  }).join('');
+}
+
 function toolbarHTML() {
   if (!selectMode) {
-    return `<button type="button" data-enter-select class="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 mb-2">☑️ เลือกหลายใบ</button>`;
+    return `
+    <div class="flex flex-wrap items-center gap-1.5 mb-2">
+      <button type="button" data-enter-select class="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">☑️ เลือกหลายใบ</button>
+      <span class="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-1"></span>
+      ${quickFilterBarHTML()}
+    </div>`;
   }
   const listOptions = store.state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
   const memberOptions = store.state.members.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
@@ -214,6 +250,13 @@ async function handleBulkAssign(memberName) {
 }
 
 function onBoardClick(e) {
+  const filterBtn = e.target.closest('[data-quick-filter]');
+  if (filterBtn) {
+    const key = filterBtn.dataset.quickFilter;
+    quickFilter = quickFilter === key ? null : key; // click again to clear
+    rerenderBoard();
+    return;
+  }
   if (e.target.closest('[data-enter-select]')) {
     selectMode = true;
     rerenderBoard();
