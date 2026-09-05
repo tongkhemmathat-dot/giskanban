@@ -18,7 +18,9 @@ import attachmentsRouter from './routes/attachments.routes.js';
 import timelogsRouter from './routes/timelogs.routes.js';
 import labelsRouter from './routes/labels.routes.js';
 import reportsRouter from './routes/reports.routes.js';
+import recurringRouter from './routes/recurring.routes.js';
 import { sendSlaDigest } from './services/notify.service.js';
+import { runDueRecurring } from './services/recurring.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -62,6 +64,7 @@ app.use('/api', attachmentsRouter); // spans /api/cards/:id/attachments and /api
 app.use('/api', timelogsRouter); // spans /api/cards/:id/time-logs and /api/time-logs/:tid
 app.use('/api/labels', labelsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/recurring-cards', recurringRouter);
 
 app.use(express.static(PUBLIC_DIR));
 
@@ -98,6 +101,21 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         .catch((err) => console.error('ส่ง SLA digest ไม่สำเร็จ:', err));
     }, 60_000);
   }
+
+  // ใบงานประจำ (recurring cards for PM work, docs/07-roadmap.md backlog).
+  // Always on (unlike the opt-in email digest above, which needs real SMTP
+  // creds) — checks every 5 minutes for any active rule whose next_run_at
+  // has passed and creates that card via recurring.service.js's
+  // runDueRecurring(). Same "only meaningful under a persistent process"
+  // caveat: no-op under a stateless serverless deploy.
+  setInterval(() => {
+    try {
+      const created = runDueRecurring();
+      if (created.length) console.warn(`สร้างใบงานประจำอัตโนมัติ ${created.length} ใบ`);
+    } catch (err) {
+      console.error('สร้างใบงานประจำไม่สำเร็จ:', err);
+    }
+  }, 5 * 60_000);
 }
 
 export default app;

@@ -182,6 +182,41 @@ FROM subtasks
 GROUP BY card_id;
 ```
 
+## 3.5 Migration 003 — ใบงานประจำ (recurring)
+
+ไฟล์: `server/db/migrations/003_recurring.sql`
+
+```sql
+CREATE TABLE recurring_cards (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT NOT NULL,
+  list_id       INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  description   TEXT,
+  type          TEXT NOT NULL DEFAULT 'maintenance'
+                CHECK (type IN ('incident','service_request','change','maintenance')),
+  priority      TEXT NOT NULL DEFAULT 'medium'
+                CHECK (priority IN ('critical','high','medium','low')),
+  site          TEXT,
+  customer      TEXT,
+  device_ref    TEXT,
+  project_code  TEXT,
+  template_slug TEXT REFERENCES templates(slug),
+  creator_id    INTEGER NOT NULL REFERENCES members(id),
+  assignee_id   INTEGER REFERENCES members(id),
+  frequency     TEXT NOT NULL CHECK (frequency IN ('weekly','monthly')),
+  day_of_week   INTEGER,                           -- 0=Sun..6=Sat, ใช้เมื่อ frequency='weekly'
+  day_of_month  INTEGER,                           -- 1-28 เท่านั้น, ใช้เมื่อ frequency='monthly'
+  is_active     INTEGER NOT NULL DEFAULT 1,
+  next_run_at   TEXT NOT NULL,
+  last_run_at   TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_recurring_due ON recurring_cards(is_active, next_run_at);
+```
+
+หนึ่งแถว = หนึ่งตารางเดินซ้ำ (docs/07-roadmap.md backlog: "ใบงานประจำสำหรับงาน PM") — scheduler ใน `server/index.js` เช็คทุก 5 นาที แล้วสร้างการ์ดจริงผ่าน `card.service.js`'s `createCard()` เมื่อ `next_run_at` ถึงกำหนด จากนั้นคำนวณ `next_run_at` รอบถัดไปด้วย `server/utils/recurrence.js`'s `computeNextRun()` (06:00 น. **เวลาไทย** ICT/UTC+7 — คอลัมน์เก็บเป็น UTC ตามปกติ) — ดู `docs/04-api.md` §10
+
 ## 4. Seed — ข้อมูลตั้งต้น
 
 ไฟล์: `server/db/seed.js` ต้องใส่:

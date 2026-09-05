@@ -234,7 +234,42 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
 | GET | `/api/reports/throughput?weeks=8` | `[{ week: "W35", opened: 12, closed: 8 }]` |
 | GET | `/api/reports/by-creator` | `[{ name, count }]` |
 
-## 10. Health
+## 10. Recurring Cards (ใบงานประจำ สำหรับงาน PM)
+
+แต่ละ rule = ตารางเดินซ้ำ (รายสัปดาห์/รายเดือน) ที่สร้างใบงานจริงให้อัตโนมัติผ่าน `POST /api/cards`
+เดียวกับที่ create-modal.js ใช้ (SLA/activity/แม่แบบขั้นตอนทำงานเหมือนกันทุกอย่าง)
+
+| Method | Path | หมายเหตุ |
+|---|---|---|
+| GET | `/api/recurring-cards` | `{ items: [...] }` |
+| POST | `/api/recurring-cards` | สร้าง rule ใหม่ |
+| PATCH | `/api/recurring-cards/:id` | แก้ไข rule (เปลี่ยนตารางเวลาจะคำนวณ `nextRunAt` ใหม่) |
+| DELETE | `/api/recurring-cards/:id` | ลบ rule |
+| POST | `/api/recurring-cards/:id/run-now` | สร้างใบงานรอบนี้ทันที (ไม่รอถึงเวลา) แล้วเลื่อน `nextRunAt` ต่อ |
+
+Body ตอนสร้าง (`POST /api/recurring-cards`):
+
+```json
+{
+  "name": "PM เราท์เตอร์ชั้น 5 รายสัปดาห์",
+  "listId": 2,
+  "title": "ตรวจเช็คเราท์เตอร์ชั้น 5",
+  "type": "maintenance",
+  "priority": "medium",
+  "templateSlug": "pm",
+  "creatorName": "ณัฐพล ว.",
+  "assigneeName": "สมชาย ก.",
+  "frequency": "weekly",
+  "dayOfWeek": 1
+}
+```
+
+- `frequency`: `"weekly"` (ต้องมี `dayOfWeek` 0-6, 0=อาทิตย์) หรือ `"monthly"` (ต้องมี `dayOfMonth` 1-28 — จำกัดไว้ไม่เกิน 28 เพื่อให้มีวันนั้นในทุกเดือน ไม่ต้องจัดการกรณีเดือนสั้น)
+- server คำนวณ `nextRunAt` เองเสมอ (06:00 น. เวลาไทย ICT/UTC+7 ของวันที่ตรงเงื่อนไขถัดไป เก็บลง DB เป็น UTC) — client ไม่ส่งมาได้
+- `isActive` (PATCH เท่านั้น): `false` = หยุดสร้างใบงานอัตโนมัติชั่วคราวโดยไม่ต้องลบ rule
+- Scheduler ใน `server/index.js` เช็คทุก 5 นาที สร้างใบงานให้ทุก rule ที่ `nextRunAt` ถึงกำหนดแล้ว (persistent process เท่านั้น เหมือนอีเมลสรุป SLA — ไม่ทำงานบน deploy แบบ serverless)
+
+## 11. Health
 
 `GET /api/health` → `{ "ok": true, "db": "connected", "version": "1.0.0", "uptime": 3600 }`
 

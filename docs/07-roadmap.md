@@ -120,6 +120,6 @@
 - [x] Export CSV — `GET /api/cards/export` (รองรับ filter เดียวกับ `GET /api/cards`) + ปุ่มใน header · "รายงานรายเดือน" แยกไม่ได้ทำ (ไม่มี concept ชัดเจนนอกเหนือจาก Dashboard ที่มีอยู่แล้ว)
 - [x] กำหนด due date รายขั้นตอน + เตือนขั้นที่เลยกำหนด — `subtasks.isOverdue` คำนวณที่ server (`parseAsUtc`, `server/utils/sla.js`), ตั้งค่า/แก้ไขได้ใน card-modal ตอน hover แถวขั้นตอน
 - [x] หน้าจัดการแม่แบบจากในเว็บ — `#/templates` (`public/js/views/templates.view.js`)
-- ใบงานประจำ (recurring) สำหรับงาน PM
+- [x] ใบงานประจำ (recurring) สำหรับงาน PM — `recurring_cards` table (`003_recurring.sql`) + `server/services/recurring.service.js` + `#/recurring` (`public/js/views/recurring.view.js`); scheduler ใน `server/index.js` เช็คทุก 5 นาที สร้างการ์ดจริงผ่าน `createCard()` เมื่อถึงกำหนด, ปุ่ม "สร้างตอนนี้" สำหรับ trigger มือ
 - [x] Dark mode — toggle ใน header, จำค่าไว้ (`localStorage jc_theme`), ตาม system preference เป็นค่าเริ่มต้น
 - [x] ตัวอักษรใหญ่ (สำหรับผู้ใช้สูงอายุ) — ปุ่ม "Aa" ใน header เหมือน dark mode toggle, จำค่าไว้ (`localStorage jc_textsize`), ขยาย root font-size 118% (`public/js/textsize.js`, `public/css/app.css`)
