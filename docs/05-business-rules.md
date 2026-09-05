@@ -91,6 +91,7 @@ export const splitTitles = (input) =>
 | ติ๊กครบทุกขั้น | `done = total` และไม่ได้อยู่ `review`/`done` | **เสนอ** ย้ายไป Review (UI ถามก่อน) |
 | ย้ายเข้าคอลัมน์ `is_done` | – | ตั้ง `completed_at = now` |
 | ย้ายออกจากคอลัมน์ `is_done` | – | ล้าง `completed_at` |
+| ย้ายเข้าคอลัมน์ `is_done` (ลากเอง/bulk move) | ขั้นตอนยังไม่ครบ หรือไม่มีขั้นตอนเลย | **เตือน (confirm) ก่อน** ไม่บล็อก — กันปิดงานไม่ครบ (`public/js/views/board.view.js`'s `incompleteSubtasksWarning`) |
 
 ### 4.4 อื่น ๆ
 

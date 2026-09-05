@@ -136,6 +136,19 @@ function initSortable(root) {
   });
 }
 
+// Supervisor guardrail (docs/05-business-rules.md §4.3 backlog note): warn —
+// never block, per CLAUDE.md's low-friction philosophy — before a card lands
+// in a `isDone` column with its checklist incomplete or missing entirely,
+// since that's exactly the kind of "closed but not actually finished" work a
+// หัวหน้า can't easily catch after the fact. Shared by handleDrop (single
+// drag) and handleBulkMove (one combined confirm for the whole batch) below.
+function incompleteSubtasksWarning(card) {
+  const prog = card.progress || { done: 0, total: 0 };
+  if (prog.total === 0) return `"${card.title}" ยังไม่มีขั้นตอนการทำงานเลย`;
+  if (prog.done < prog.total) return `"${card.title}" ยังทำไม่ครบทุกขั้นตอน (${prog.done}/${prog.total})`;
+  return null;
+}
+
 async function handleDrop(evt) {
   const cardId = Number(evt.item.dataset.cardId);
   const newListId = Number(evt.to.dataset.listId);
@@ -147,6 +160,14 @@ async function handleDrop(evt) {
   const card = store.getCard(cardId);
   if (!card) return;
   const cardTitle = card.title;
+
+  if (oldListId !== newListId && store.getList(newListId)?.isDone) {
+    const warning = incompleteSubtasksWarning(card);
+    if (warning && !window.confirm(`${warning} ยืนยันย้ายไป ${store.getList(newListId)?.name} หรือไม่?`)) {
+      rerenderBoard(); // undo Sortable's own DOM move — store state never changed
+      return;
+    }
+  }
 
   const idx = siblingIds.indexOf(cardId);
   const prevCard = idx > 0 ? store.getCard(siblingIds[idx - 1]) : null;
@@ -215,6 +236,14 @@ function endOfListPosition(listId, offset) {
 async function handleBulkMove(listId) {
   const ids = [...selectedIds];
   const targetList = store.getList(listId);
+
+  if (targetList?.isDone) {
+    const incompleteCount = ids.filter((id) => incompleteSubtasksWarning(store.getCard(id))).length;
+    if (incompleteCount > 0 && !window.confirm(`มี ${incompleteCount} ใบงานที่ยังทำไม่ครบทุกขั้นตอน ยืนยันย้ายไป ${targetList.name} ทั้งหมดหรือไม่?`)) {
+      return;
+    }
+  }
+
   let okCount = 0;
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i];

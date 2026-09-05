@@ -5,7 +5,7 @@
 // bootstrap data already in store.js. Chart.js is loaded globally via the
 // CDN <script> in public/index.html, same as Sortable.
 import { store } from '../store.js';
-import { esc } from '../components/card.js';
+import { esc, staleDays } from '../components/card.js';
 import { openCardModal } from '../components/card-modal.js';
 
 function isDoneList(listId) {
@@ -34,6 +34,48 @@ function riskyRowHTML(c) {
   </tr>`;
 }
 
+// "ภาพรวมทีม" (backlog: หัวหน้าเห็นภาพรวมงานลูกน้องได้โดยไม่ต้องไล่เปิดทีละ
+// การ์ด) — sorted worst-first (stale + at-risk/overdue) so whoever needs
+// attention floats to the top, rather than alphabetically like the charts.
+function teamOverviewRows() {
+  return store.state.members
+    .map((m) => {
+      const assigned = store.state.cards.filter((c) => (c.assignees || []).some((a) => a.id === m.id) && !isDoneList(c.listId));
+      const stale = assigned.filter((c) => staleDays(c) != null).length;
+      const risky = assigned.filter((c) => c.slaStatus === 'overdue' || c.slaStatus === 'at_risk').length;
+      return { member: m, active: assigned.length, stale, risky };
+    })
+    .sort((a, b) => b.stale + b.risky - (a.stale + a.risky));
+}
+
+function teamRowHTML(row) {
+  return `
+  <tr class="border-b border-slate-50 dark:border-slate-700 dark:text-slate-300">
+    <td class="px-4 py-2 font-medium">${esc(row.member.name)}</td>
+    <td class="px-4 py-2 text-center">${row.active}</td>
+    <td class="px-4 py-2 text-center ${row.stale ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}">${row.stale || '—'}</td>
+    <td class="px-4 py-2 text-center ${row.risky ? 'text-rose-600 dark:text-rose-400 font-medium' : ''}">${row.risky || '—'}</td>
+  </tr>`;
+}
+
+function teamOverviewHTML() {
+  const rows = teamOverviewRows();
+  return `
+  <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-5">
+    <div class="px-4 py-2 font-medium text-sm border-b border-slate-100 dark:border-slate-700 dark:text-slate-100">ภาพรวมทีม (สำหรับหัวหน้า)</div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 dark:text-slate-400 text-xs border-b border-slate-100 dark:border-slate-700">
+            <th class="px-4 py-2">ชื่อ</th><th class="px-4 py-2 text-center">งานที่ถืออยู่</th><th class="px-4 py-2 text-center">ค้างไม่ขยับ</th><th class="px-4 py-2 text-center">เกิน/ใกล้ครบ SLA</th>
+          </tr>
+        </thead>
+        <tbody>${rows.map(teamRowHTML).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
 function bodyHTML() {
   const doneCount = store.state.cards.filter((c) => isDoneList(c.listId)).length;
   const open = store.state.cards.length - doneCount;
@@ -48,6 +90,7 @@ function bodyHTML() {
     ${kpiHTML('เกินกำหนด', overdue, 'rose')}
     ${kpiHTML('ปิดแล้ว', doneCount, 'emerald')}
   </div>
+  ${teamOverviewHTML()}
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
     <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
       <div class="text-sm font-medium mb-2 dark:text-slate-100">ภาระงานรายคน (ผู้รับผิดชอบ)</div>
