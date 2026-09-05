@@ -47,11 +47,14 @@ Base URL: `/api` · Content-Type: `application/json` · ไม่มี auth hea
       "creator": { "id": 1, "name": "สมชาย ก.", "color": "#6366f1" },
       "assignees": [{ "id": 2, "name": "ณัฐพล ว.", "color": "#10b981" }],
       "labels": [], "progress": { "done": 3, "total": 11, "pct": 27 },
-      "counts": { "comments": 2, "attachments": 1 }
+      "counts": { "comments": 2, "attachments": 1 },
+      "lastActivityAt": "2026-09-01T09:30"
     }
   ]
 }
 ```
+
+`lastActivityAt` (backlog idea: "ป้ายเตือนการ์ดค้าง") = newer of `updated_at` and the card's latest `activities` row — so it reflects subtask ticks/comments/time logs too, not just field edits/moves. Client shows a "🕸 ไม่มีความเคลื่อนไหว N วัน" badge when this is ≥3 days old and the card isn't done (`public/js/components/card.js`).
 
 ---
 

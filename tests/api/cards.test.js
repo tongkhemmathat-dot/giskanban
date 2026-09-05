@@ -168,6 +168,22 @@ describe('Cards API', () => {
     expect(Math.abs(diffMs - 2 * 60 * 60 * 1000)).toBeLessThan(60_000); // allow for toApiDateTime's minute truncation
   });
 
+  it("lastActivityAt reflects a comment even though comments don't touch cards.updated_at", async () => {
+    const created = await request(app)
+      .post('/api/cards')
+      .send({ listId: TODO_LIST_ID, title: 'ทดสอบ lastActivityAt', creatorName: 'สมชาย ก.' });
+    const cardId = created.body.id;
+
+    // Backdate updated_at to simulate a card that's been sitting untouched for a while.
+    getDb().prepare("UPDATE cards SET updated_at = datetime('now', '-10 days') WHERE id = ?").run(cardId);
+
+    await request(app).post(`/api/cards/${cardId}/comments`).send({ authorName: 'สมชาย ก.', body: 'อัปเดตความคืบหน้า' });
+
+    const fetched = await request(app).get(`/api/cards/${cardId}`);
+    const staleUpdatedAtMs = new Date(getDb().prepare('SELECT updated_at FROM cards WHERE id = ?').get(cardId).updated_at.replace(' ', 'T') + 'Z').getTime();
+    expect(new Date(fetched.body.lastActivityAt).getTime()).toBeGreaterThan(staleUpdatedAtMs);
+  });
+
   it('C11: DELETE card cascades to its subtasks', async () => {
     const created = await request(app)
       .post('/api/cards')

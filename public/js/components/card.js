@@ -54,6 +54,21 @@ function slaChipHTML(card) {
   return '';
 }
 
+// "ค้าง" badge (backlog idea) — not the SLA clock, just "nobody has touched
+// this in a while" so it surfaces in daily stand-ups even when SLA itself is
+// still ok (e.g. low priority, so SLA_HOURS gives it a week either way).
+// lastActivityAt (server/services/card.service.js) already takes the newer
+// of cards.updated_at and the activities log, so this reflects subtask
+// ticks/comments/etc. too, not just card-field edits or moves.
+const STALE_DAYS = 3;
+
+function staleDaysHTML(card) {
+  if (card.slaStatus === 'done' || !card.lastActivityAt) return '';
+  const days = Math.floor((Date.now() - new Date(card.lastActivityAt).getTime()) / 86400000);
+  if (days < STALE_DAYS) return '';
+  return `<div class="text-[11px] text-amber-600 dark:text-amber-400 pl-2 mt-1 flex items-center gap-1">🕸 ไม่มีความเคลื่อนไหว ${days} วัน</div>`;
+}
+
 /**
  * Returns the HTML for one card. Pure function of `card` (+ optional bulk-
  * select state) — safe to call repeatedly (idempotent). `selectable` is the
@@ -85,6 +100,7 @@ export function cardHTML(card, { selectable = false, selected = false } = {}) {
     ${card.deviceRef ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 pl-2">🖥 ${esc(card.deviceRef)}</div>` : ''}
     ${card.projectCode ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 pl-2">🗂 ${esc(card.projectCode)}</div>` : ''}
     <div class="text-[11px] text-slate-600 dark:text-slate-300 pl-2 mt-1 flex items-center gap-1">✍️ ผู้สร้าง: <span class="font-medium">${esc(card.creator?.name || '—')}</span></div>
+    ${staleDaysHTML(card)}
     ${prog.total > 0 ? `
       <div class="pl-2 mt-2">
         <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">

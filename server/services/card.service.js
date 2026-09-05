@@ -90,11 +90,16 @@ function mapCardRow(row) {
     completedAt: toApiDateTime(row.completed_at),
     createdAt: toApiDateTime(row.created_at),
     updatedAt: toApiDateTime(row.updated_at),
+    // Backlog idea: "stale card" badge. updated_at alone misses activity that
+    // doesn't touch the cards row (subtask toggles, comments, time logs), so
+    // this takes whichever is newer — the true last-touched time.
+    lastActivityAt: toApiDateTime(row.last_activity_at > row.updated_at ? row.last_activity_at : row.updated_at),
   };
 }
 
 const BASE_SELECT = `
-  SELECT c.*, l.is_done AS list_is_done, l.pauses_sla AS list_pauses_sla, m.name AS creator_name, m.color AS creator_color
+  SELECT c.*, l.is_done AS list_is_done, l.pauses_sla AS list_pauses_sla, m.name AS creator_name, m.color AS creator_color,
+         (SELECT MAX(created_at) FROM activities WHERE card_id = c.id) AS last_activity_at
   FROM cards c
   JOIN lists l ON l.id = c.list_id
   JOIN members m ON m.id = c.creator_id
