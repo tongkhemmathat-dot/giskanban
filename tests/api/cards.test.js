@@ -8,6 +8,7 @@ import { toApiDateTime } from '../../server/utils/date.js';
 // Seeded list ids (server/db/seed.js LISTS order): backlog=1, todo=2,
 // doing=3, waiting=4, review=5, done=6.
 const TODO_LIST_ID = 2;
+const WAITING_LIST_ID = 4;
 const DONE_LIST_ID = 6;
 
 describe('Cards API', () => {
@@ -143,6 +144,28 @@ describe('Cards API', () => {
       .patch(`/api/cards/${cardId}/move`)
       .send({ listId: TODO_LIST_ID, position: 65536 });
     expect(outOfDone.body.completedAt).toBeNull();
+  });
+
+  it('C12/C13: moving into/out of Waiting Vendor pauses and extends the SLA clock', async () => {
+    const created = await request(app)
+      .post('/api/cards')
+      .send({ listId: TODO_LIST_ID, title: 'รอผู้ให้บริการ', creatorName: 'สมชาย ก.', priority: 'critical' });
+    const cardId = created.body.id;
+    const originalSlaDueAt = created.body.slaDueAt;
+
+    const intoWaiting = await request(app).patch(`/api/cards/${cardId}/move`).send({ listId: WAITING_LIST_ID, position: 65536 });
+    expect(intoWaiting.status).toBe(200);
+    expect(intoWaiting.body.slaStatus).toBe('paused');
+    expect(intoWaiting.body.slaDueAt).toBe(originalSlaDueAt); // due date itself untouched while paused
+
+    // Backdate sla_paused_at by 2h to simulate time spent waiting, without a real sleep.
+    getDb().prepare("UPDATE cards SET sla_paused_at = datetime(sla_paused_at, '-2 hours') WHERE id = ?").run(cardId);
+
+    const outOfWaiting = await request(app).patch(`/api/cards/${cardId}/move`).send({ listId: TODO_LIST_ID, position: 65536 });
+    expect(outOfWaiting.status).toBe(200);
+    expect(outOfWaiting.body.slaStatus).not.toBe('paused');
+    const diffMs = new Date(outOfWaiting.body.slaDueAt).getTime() - new Date(originalSlaDueAt).getTime();
+    expect(Math.abs(diffMs - 2 * 60 * 60 * 1000)).toBeLessThan(60_000); // allow for toApiDateTime's minute truncation
   });
 
   it('C11: DELETE card cascades to its subtasks', async () => {

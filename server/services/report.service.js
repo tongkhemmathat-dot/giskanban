@@ -12,7 +12,7 @@ function cardSlaRows() {
   return db
     .prepare(
       `SELECT c.id, c.priority, c.sla_due_at, c.created_at, c.completed_at, c.creator_id,
-              l.id AS list_id, l.slug, l.is_done
+              l.id AS list_id, l.slug, l.is_done, l.pauses_sla
        FROM cards c JOIN lists l ON l.id = c.list_id`,
     )
     .all();
@@ -20,7 +20,7 @@ function cardSlaRows() {
 
 export function getSummary() {
   const rows = cardSlaRows();
-  const statuses = rows.map((r) => computeSlaStatus({ priority: r.priority, slaDueAt: r.sla_due_at, isDone: !!r.is_done }));
+  const statuses = rows.map((r) => computeSlaStatus({ priority: r.priority, slaDueAt: r.sla_due_at, isDone: !!r.is_done, isPaused: !!r.pauses_sla }));
 
   const open = rows.filter((r) => !r.is_done).length;
   const doing = rows.filter((r) => r.slug === 'doing').length;
@@ -56,7 +56,7 @@ export function getWorkload() {
     const assigned = rows.filter((r) => assigneesByCard.get(r.id)?.has(m.id));
     const active = assigned.filter((r) => !r.is_done).length;
     const overdue = assigned.filter(
-      (r) => !r.is_done && computeSlaStatus({ priority: r.priority, slaDueAt: r.sla_due_at, isDone: false }) === 'overdue',
+      (r) => !r.is_done && computeSlaStatus({ priority: r.priority, slaDueAt: r.sla_due_at, isDone: false, isPaused: !!r.pauses_sla }) === 'overdue',
     ).length;
     return { memberId: m.id, name: m.name, active, created, overdue };
   });

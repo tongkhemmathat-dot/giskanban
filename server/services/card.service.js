@@ -14,7 +14,7 @@
 import db from '../db/connection.js';
 import { AppError } from '../utils/AppError.js';
 import { nextCardCode } from '../utils/code.js';
-import { calcSlaDueAt, computeSlaStatus } from '../utils/sla.js';
+import { calcSlaDueAt, computeSlaStatus, shiftSlaDueAt, parseAsUtc } from '../utils/sla.js';
 import { midPosition } from '../utils/position.js';
 import { splitTitles } from '../utils/subtask.js';
 import { toApiDateTime, nowSqlite } from '../utils/date.js';
@@ -63,6 +63,7 @@ function getCardCounts(cardId) {
 // `members AS m` (for creator_name/creator_color) — see the two callers below.
 function mapCardRow(row) {
   const isDone = !!row.list_is_done;
+  const isPaused = !!row.list_pauses_sla;
   return {
     id: row.id,
     code: row.code,
@@ -78,7 +79,7 @@ function mapCardRow(row) {
     projectCode: row.project_code,
     dueDate: toApiDateTime(row.due_date),
     slaDueAt: toApiDateTime(row.sla_due_at),
-    slaStatus: computeSlaStatus({ priority: row.priority, slaDueAt: row.sla_due_at, isDone }),
+    slaStatus: computeSlaStatus({ priority: row.priority, slaDueAt: row.sla_due_at, isDone, isPaused }),
     estimatedHours: row.estimated_hours,
     creator: { id: row.creator_id, name: row.creator_name, color: row.creator_color },
     assignees: getCardAssignees(row.id),
@@ -93,7 +94,7 @@ function mapCardRow(row) {
 }
 
 const BASE_SELECT = `
-  SELECT c.*, l.is_done AS list_is_done, m.name AS creator_name, m.color AS creator_color
+  SELECT c.*, l.is_done AS list_is_done, l.pauses_sla AS list_pauses_sla, m.name AS creator_name, m.color AS creator_color
   FROM cards c
   JOIN lists l ON l.id = c.list_id
   JOIN members m ON m.id = c.creator_id
@@ -242,11 +243,11 @@ function createCardTxn(input) {
     .prepare(
       `INSERT INTO cards (
         list_id, code, title, description, position, type, priority,
-        due_date, sla_due_at, estimated_hours, site, customer, device_ref,
+        due_date, sla_due_at, sla_paused_at, estimated_hours, site, customer, device_ref,
         project_code, creator_id, created_at, updated_at
       ) VALUES (
         @list_id, @code, @title, @description, @position, @type, @priority,
-        @due_date, @sla_due_at, @estimated_hours, @site, @customer, @device_ref,
+        @due_date, @sla_due_at, @sla_paused_at, @estimated_hours, @site, @customer, @device_ref,
         @project_code, @creator_id, @created_at, @created_at
       )`,
     )
@@ -260,6 +261,7 @@ function createCardTxn(input) {
       priority: input.priority,
       due_date: input.dueDate ?? null,
       sla_due_at: slaDueAt,
+      sla_paused_at: list.pauses_sla ? createdAt : null, // e.g. created straight into Waiting Vendor
       estimated_hours: input.estimatedHours ?? null,
       site: input.site ?? null,
       customer: input.customer ?? null,
@@ -376,10 +378,26 @@ function moveCardTxn(id, { listId, position }, actorName) {
     completedAt = null;
   }
 
-  db.prepare('UPDATE cards SET list_id = ?, position = ?, completed_at = ?, updated_at = ? WHERE id = ?').run(
+  // Same idea for pauses_sla columns (e.g. Waiting Vendor): entering pauses
+  // the clock, leaving gives back exactly the time spent parked there by
+  // pushing sla_due_at forward (docs/05-business-rules.md §2).
+  let slaPausedAt = existing.sla_paused_at;
+  let slaDueAt = existing.sla_due_at;
+  if (targetList.pauses_sla && !fromList.pauses_sla) {
+    slaPausedAt = nowSqlite();
+  } else if (!targetList.pauses_sla && fromList.pauses_sla) {
+    if (slaPausedAt && slaDueAt) {
+      slaDueAt = shiftSlaDueAt(slaDueAt, Date.now() - parseAsUtc(slaPausedAt).getTime());
+    }
+    slaPausedAt = null;
+  }
+
+  db.prepare('UPDATE cards SET list_id = ?, position = ?, completed_at = ?, sla_due_at = ?, sla_paused_at = ?, updated_at = ? WHERE id = ?').run(
     listId,
     position,
     completedAt,
+    slaDueAt,
+    slaPausedAt,
     nowSqlite(),
     id,
   );

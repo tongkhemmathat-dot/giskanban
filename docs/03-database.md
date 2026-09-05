@@ -217,6 +217,19 @@ CREATE INDEX idx_recurring_due ON recurring_cards(is_active, next_run_at);
 
 หนึ่งแถว = หนึ่งตารางเดินซ้ำ (docs/07-roadmap.md backlog: "ใบงานประจำสำหรับงาน PM") — scheduler ใน `server/index.js` เช็คทุก 5 นาที แล้วสร้างการ์ดจริงผ่าน `card.service.js`'s `createCard()` เมื่อ `next_run_at` ถึงกำหนด จากนั้นคำนวณ `next_run_at` รอบถัดไปด้วย `server/utils/recurrence.js`'s `computeNextRun()` (06:00 น. **เวลาไทย** ICT/UTC+7 — คอลัมน์เก็บเป็น UTC ตามปกติ) — ดู `docs/04-api.md` §10
 
+## 3.6 Migration 004 — พัก SLA (SLA pause)
+
+ไฟล์: `server/db/migrations/004_sla_pause.sql`
+
+```sql
+ALTER TABLE lists ADD COLUMN pauses_sla INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE cards ADD COLUMN sla_paused_at TEXT;
+
+UPDATE lists SET pauses_sla = 1 WHERE slug = 'waiting';
+```
+
+`lists.pauses_sla` เหมือน `is_done` ทุกประการ (ตั้งค่าตอน seed เท่านั้น ไม่มี UI แก้ทีหลัง) — คอลัมน์ที่ตั้งค่านี้ไว้ (ปัจจุบันคือ Waiting Vendor) จะไม่นับเวลาเสี่ยง/เกินกำหนด SLA ระหว่างที่การ์ดอยู่ในนั้น ดู `docs/05-business-rules.md` §2
+
 ## 4. Seed — ข้อมูลตั้งต้น
 
 ไฟล์: `server/db/seed.js` ต้องใส่:

@@ -19,7 +19,7 @@ const LISTS = [
   { position: 1, name: 'Backlog', slug: 'backlog', wip_limit: null, is_done: 0 },
   { position: 2, name: 'To Do', slug: 'todo', wip_limit: null, is_done: 0 },
   { position: 3, name: 'In Progress', slug: 'doing', wip_limit: 4, is_done: 0 },
-  { position: 4, name: 'Waiting Vendor', slug: 'waiting', wip_limit: null, is_done: 0 },
+  { position: 4, name: 'Waiting Vendor', slug: 'waiting', wip_limit: null, is_done: 0, pauses_sla: 1 },
   { position: 5, name: 'Review', slug: 'review', wip_limit: null, is_done: 0 },
   { position: 6, name: 'Done', slug: 'done', wip_limit: null, is_done: 1 },
 ];
@@ -106,12 +106,12 @@ function insertBoardAndLists(db) {
     db.prepare('INSERT INTO boards (name) VALUES (?)').run(boardName).lastInsertRowid,
   );
   const stmt = db.prepare(`
-    INSERT INTO lists (board_id, name, slug, position, wip_limit, is_done)
-    VALUES (@board_id, @name, @slug, @position, @wip_limit, @is_done)
+    INSERT INTO lists (board_id, name, slug, position, wip_limit, is_done, pauses_sla)
+    VALUES (@board_id, @name, @slug, @position, @wip_limit, @is_done, @pauses_sla)
   `);
   const bySlug = {};
   for (const l of LISTS) {
-    const info = stmt.run({ board_id: boardId, ...l });
+    const info = stmt.run({ board_id: boardId, pauses_sla: 0, ...l }); // only 'waiting' overrides this (docs/05-business-rules.md §2)
     bySlug[l.slug] = Number(info.lastInsertRowid);
   }
   return { boardId, lists: bySlug };

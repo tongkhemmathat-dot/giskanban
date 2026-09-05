@@ -6,7 +6,7 @@ import { isoDateTimeSchema } from './common.schema.js';
 
 const TYPES = ['incident', 'service_request', 'change', 'maintenance'];
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
-const SLA_STATUSES = ['ok', 'at_risk', 'overdue', 'done'];
+const SLA_STATUSES = ['ok', 'at_risk', 'overdue', 'done', 'paused'];
 
 // 'E' + 2-digit year + '-' + 4 digits, e.g. E26-1234 (docs/05-business-rules.md §7).
 const PROJECT_CODE_RE = /^E\d{2}-\d{4}$/;

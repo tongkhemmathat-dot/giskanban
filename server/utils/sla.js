@@ -52,14 +52,23 @@ export function calcSlaDueAt(priority, createdAt) {
   return formatSqlite(due);
 }
 
+// Pushes slaDueAt forward by extendByMs — used when a card leaves a
+// pauses_sla list (server/services/card.service.js's moveCardTxn) to give
+// back exactly the wall-clock time it spent parked there, e.g. waiting on a
+// vendor. Same string-in/string-out shape as calcSlaDueAt above.
+export function shiftSlaDueAt(slaDueAt, extendByMs) {
+  return formatSqlite(new Date(parseAsUtc(slaDueAt).getTime() + extendByMs));
+}
+
 /**
- * computeSlaStatus({ priority, slaDueAt, isDone }) -> 'done'|'overdue'|'at_risk'|'ok'
+ * computeSlaStatus({ priority, slaDueAt, isDone, isPaused }) -> 'done'|'paused'|'overdue'|'at_risk'|'ok'
  * Read-time SLA status classification (docs/05-business-rules.md §2 table).
  * Pure function — the caller (card.service.js) is responsible for looking up
- * whether the card's current list has is_done=1.
+ * whether the card's current list has is_done=1 / pauses_sla=1.
  */
-export function computeSlaStatus({ priority, slaDueAt, isDone }) {
+export function computeSlaStatus({ priority, slaDueAt, isDone, isPaused }) {
   if (isDone) return 'done';
+  if (isPaused) return 'paused'; // clock isn't running — stale slaDueAt would otherwise misreport overdue/at_risk
   if (!slaDueAt) return 'ok';
   const due = parseAsUtc(slaDueAt).getTime();
   const now = Date.now();
