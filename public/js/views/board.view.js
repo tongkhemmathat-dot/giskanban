@@ -7,7 +7,7 @@
 // in, same DOM out, no leaked listeners because old nodes are discarded
 // wholesale each render, same pattern as public/mockup.html).
 
-import { store, midPosition } from '../store.js';
+import { store, midPosition, GAP } from '../store.js';
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { cardHTML, esc } from '../components/card.js';
@@ -16,6 +16,15 @@ import { openCardModal } from '../components/card-modal.js';
 
 let wasDragged = false;
 let sortableInstances = [];
+
+// Bulk select (docs/07-roadmap.md backlog: "bulk action บนบอร์ด") — view-only
+// UI state, same precedent as wasDragged/sortableInstances above: not
+// everything belongs in store.js, just what other views/components need to
+// react to. No new backend endpoint: this loops the existing single-card
+// move/assignee endpoints, which is plenty fast for a 5-15 person team's board.
+let selectMode = false;
+const selectedIds = new Set();
+let rerenderBoard = () => {};
 
 // docs/06-ui-spec.md §1's single search box covers title/site/device/code/creator
 // (docs/07-roadmap.md 4.9) — no separate filter dropdowns are specified.
@@ -63,7 +72,7 @@ function columnHTML(list) {
       </div>
       ${description ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${esc(description)}</div>` : ''}
     </div>
-    <div class="col-body flex-1 overflow-y-auto px-2 pb-1" data-list-id="${list.id}">${cards.map(cardHTML).join('')}</div>
+    <div class="col-body flex-1 overflow-y-auto px-2 pb-1" data-list-id="${list.id}">${cards.map((c) => cardHTML(c, { selectable: selectMode, selected: selectedIds.has(c.id) })).join('')}</div>
     <button type="button" data-add-list-id="${list.id}" class="add-card-btn mx-2 mb-2 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 rounded py-1.5 text-left px-2">+ เพิ่มใบงาน</button>
   </div>`;
 }
@@ -141,7 +150,92 @@ async function handleDrop(evt) {
   }
 }
 
+function toolbarHTML() {
+  if (!selectMode) {
+    return `<button type="button" data-enter-select class="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 mb-2">☑️ เลือกหลายใบ</button>`;
+  }
+  const listOptions = store.state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  const memberOptions = store.state.members.map((m) => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
+  return `
+  <div class="flex flex-wrap items-center gap-2 mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 text-sm">
+    <span class="font-medium dark:text-slate-100">เลือกแล้ว ${selectedIds.size} ใบ</span>
+    <select data-bulk-list class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-xs px-2 py-1"><option value="">ย้ายไปคอลัมน์...</option>${listOptions}</select>
+    <button type="button" data-bulk-move-btn class="text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 rounded-md px-2 py-1 hover:bg-indigo-50 dark:hover:bg-indigo-900" ${selectedIds.size ? '' : 'disabled'}>ย้าย</button>
+    <select data-bulk-member class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-xs px-2 py-1"><option value="">มอบหมายให้...</option>${memberOptions}</select>
+    <button type="button" data-bulk-assign-btn class="text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 rounded-md px-2 py-1 hover:bg-indigo-50 dark:hover:bg-indigo-900" ${selectedIds.size ? '' : 'disabled'}>มอบหมาย</button>
+    <button type="button" data-exit-select class="text-xs text-slate-500 dark:text-slate-400 hover:underline ml-auto">ยกเลิก</button>
+  </div>`;
+}
+
+// Appends to the end of the target list, spacing later ids further out so a
+// multi-card move lands in selection order — same GAP convention as
+// midPosition()/handleDrop() above, no reorder-within-batch logic needed.
+function endOfListPosition(listId, offset) {
+  const cards = store.state.cards.filter((c) => c.listId === listId);
+  const maxPos = cards.length ? Math.max(...cards.map((c) => c.position ?? 0)) : null;
+  return midPosition(maxPos, null) + offset * GAP;
+}
+
+async function handleBulkMove(listId) {
+  const ids = [...selectedIds];
+  const targetList = store.getList(listId);
+  let okCount = 0;
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    try {
+      const position = endOfListPosition(listId, i);
+      await api.patch(`/cards/${id}/move`, { listId, position, actorName: store.state.me || 'ไม่ระบุ' });
+      store.moveCardLocal(id, listId, position);
+      okCount++;
+    } catch (err) {
+      toast.show(`ย้าย ${store.getCard(id)?.code ?? id} ไม่สำเร็จ: ${err.message}`);
+    }
+  }
+  if (okCount) toast.show(`ย้าย ${okCount} ใบงานไป ${targetList?.name ?? ''} แล้ว`);
+  selectedIds.clear();
+  rerenderBoard();
+}
+
+async function handleBulkAssign(memberName) {
+  const ids = [...selectedIds];
+  let okCount = 0;
+  for (const id of ids) {
+    try {
+      const res = await api.post(`/cards/${id}/assignees`, { memberName, actorName: store.state.me || undefined });
+      store.updateCardLocal(id, { assignees: res.assignees });
+      okCount++;
+    } catch (err) {
+      toast.show(`มอบหมาย ${store.getCard(id)?.code ?? id} ไม่สำเร็จ: ${err.message}`);
+    }
+  }
+  if (okCount) toast.show(`มอบหมายให้ ${memberName} แล้ว ${okCount} ใบงาน`);
+  selectedIds.clear();
+  rerenderBoard();
+}
+
 function onBoardClick(e) {
+  if (e.target.closest('[data-enter-select]')) {
+    selectMode = true;
+    rerenderBoard();
+    return;
+  }
+  if (e.target.closest('[data-exit-select]')) {
+    selectMode = false;
+    selectedIds.clear();
+    rerenderBoard();
+    return;
+  }
+  if (e.target.closest('[data-bulk-move-btn]')) {
+    const listId = Number(document.querySelector('[data-bulk-list]')?.value);
+    if (listId && selectedIds.size) handleBulkMove(listId);
+    return;
+  }
+  if (e.target.closest('[data-bulk-assign-btn]')) {
+    const memberName = document.querySelector('[data-bulk-member]')?.value;
+    if (memberName && selectedIds.size) handleBulkAssign(memberName);
+    return;
+  }
+
   const addBtn = e.target.closest('.add-card-btn');
   if (addBtn) {
     openCreateModal(Number(addBtn.dataset.addListId));
@@ -153,15 +247,23 @@ function onBoardClick(e) {
       wasDragged = false;
       return;
     }
-    openCardModal(Number(cardEl.dataset.cardId));
+    const cardId = Number(cardEl.dataset.cardId);
+    if (selectMode) {
+      if (selectedIds.has(cardId)) selectedIds.delete(cardId);
+      else selectedIds.add(cardId);
+      rerenderBoard();
+      return;
+    }
+    openCardModal(cardId);
   }
 }
 
-/** Pure render of the board into `root`, driven only by store.state. */
+/** Pure render of the board into `root`, driven only by store.state + local select state. */
 function renderBoard(root) {
   const lists = store.state.lists;
-  root.innerHTML = `<div class="flex gap-3 overflow-x-auto h-full pb-2 snap-x snap-mandatory md:snap-none">${lists.map(columnHTML).join('')}</div>`;
-  initSortable(root);
+  root.innerHTML = `${toolbarHTML()}<div class="flex gap-3 overflow-x-auto h-full pb-2 snap-x snap-mandatory md:snap-none">${lists.map(columnHTML).join('')}</div>`;
+  if (selectMode) destroySortables(); // dragging and multi-select don't mix
+  else initSortable(root);
 }
 
 /**
@@ -170,7 +272,10 @@ function renderBoard(root) {
  * away, so we don't leak Sortable instances / store subscriptions.
  */
 export function mountBoard(root) {
+  selectMode = false;
+  selectedIds.clear();
   const rerender = () => renderBoard(root);
+  rerenderBoard = rerender;
   const unsubscribe = store.subscribe(rerender);
   root.addEventListener('click', onBoardClick);
   rerender();

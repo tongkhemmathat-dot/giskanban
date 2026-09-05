@@ -48,11 +48,22 @@ function slaChipHTML(card) {
   if (card.slaStatus === 'at_risk') {
     return '<span class="text-orange-500 dark:text-orange-400 text-[11px] font-medium flex items-center gap-1">⚠ ใกล้ครบ</span>';
   }
+  if (card.slaStatus === 'paused') {
+    return '<span class="text-slate-400 dark:text-slate-500 text-[11px] font-medium flex items-center gap-1">⏸ พัก SLA</span>';
+  }
   return '';
 }
 
-/** Returns the HTML for one card. Pure function of `card` — safe to call repeatedly (idempotent). */
-export function cardHTML(card) {
+/**
+ * Returns the HTML for one card. Pure function of `card` (+ optional bulk-
+ * select state) — safe to call repeatedly (idempotent). `selectable` is the
+ * board's multi-select mode (docs/07-roadmap.md backlog: "bulk action บน
+ * board"); the checkbox is `pointer-events-none` because board.view.js's
+ * click handler owns the toggle (clicking anywhere on the card while
+ * selectable, not just the box) — letting the native checkbox also react
+ * would double-toggle it.
+ */
+export function cardHTML(card, { selectable = false, selected = false } = {}) {
   const t = TYPE_META[card.type] || TYPE_META.service_request;
   const p = PRIORITY_META[card.priority] || PRIORITY_META.medium;
   const prog = card.progress || { done: 0, total: 0, pct: 0 };
@@ -61,7 +72,8 @@ export function cardHTML(card) {
   const assignees = Array.isArray(card.assignees) ? card.assignees : [];
 
   return `
-  <div class="card-item bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 mb-2 relative" data-card-id="${card.id}">
+  <div class="card-item bg-white dark:bg-slate-800 rounded-lg border ${selected ? 'border-indigo-500 ring-2 ring-indigo-500' : 'border-slate-200 dark:border-slate-700'} p-3 mb-2 relative" data-card-id="${card.id}">
+    ${selectable ? `<input type="checkbox" ${selected ? 'checked' : ''} class="absolute -top-1.5 -left-1.5 w-4 h-4 accent-indigo-600 pointer-events-none z-10" aria-hidden="true" tabindex="-1">` : ''}
     <div class="absolute left-0 top-3 bottom-3 w-1 rounded-r ${p.dot}"></div>
     <div class="flex items-center justify-between mb-1 pl-2">
       <span class="text-[11px] px-1.5 py-0.5 rounded border ${t.chip}">${t.icon} ${esc(t.label)}</span>
