@@ -16,13 +16,40 @@ function isDoneListId(listId) {
   return store.state.lists.find((l) => l.id === listId)?.isDone === 1;
 }
 
+// ปฏิทิน Outlook ต่อสมาชิก (docs/07-roadmap.md backlog: ปฏิทินรวมของทีม) — ไม่
+// อยู่ใน bootstrap/store.js เหมือนกับ recurring rules ที่ views/recurring.view.js
+// ดึงเอง เพราะไม่มีหน้าอื่นต้องรู้สถานะนี้. "เชื่อมต่อ Outlook" เป็น `<a href>`
+// ธรรมดา ไม่ใช่ api.post — ต้อง navigate จริงเพื่อตาม redirect ไปหน้า login
+// ของ Microsoft แล้ววนกลับมา (api.js's fetch-only rule ใช้ไม่ได้กับ flow นี้).
+function connectionBadgeHTML(memberId, conn) {
+  if (!conn) {
+    return `<a href="/api/calendar/connect/${memberId}" data-connect-outlook class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อ Outlook</a>`;
+  }
+  if (conn.status === 'needs_reconnect') {
+    return `
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">ต้องเชื่อมต่อใหม่</span>
+      <a href="/api/calendar/connect/${conn.memberId}" data-connect-outlook class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อ</a>
+    </div>`;
+  }
+  return `
+  <div class="flex items-center gap-2">
+    <span class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[10rem]" title="${esc(conn.accountEmail)}">${esc(conn.accountEmail)}</span>
+    <button type="button" data-disconnect-outlook class="text-xs text-rose-600 dark:text-rose-400 hover:underline">ยกเลิก</button>
+  </div>`;
+}
+
 export function mountMembers(root) {
-  const state = { editingId: null, creating: false };
+  const state = { editingId: null, creating: false, connections: [] };
+
+  function connectionFor(memberId) {
+    return state.connections.find((c) => c.memberId === memberId) || null;
+  }
 
   function createRowHTML() {
     return `
     <tr class="border-b border-slate-50 dark:border-slate-700">
-      <td colspan="4" class="px-4 py-2">
+      <td colspan="5" class="px-4 py-2">
         <form data-create-member-form class="flex flex-wrap items-center gap-2">
           <input data-field="name" required maxlength="100" placeholder="ชื่อสมาชิกใหม่" autofocus class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1 w-52">
           <button type="button" data-cancel-create class="text-xs px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">ยกเลิก</button>
@@ -35,7 +62,7 @@ export function mountMembers(root) {
   function editRowHTML(m) {
     return `
     <tr class="border-b border-slate-50 dark:border-slate-700" data-member-id="${m.id}">
-      <td colspan="4" class="px-4 py-2">
+      <td colspan="5" class="px-4 py-2">
         <form data-member-form class="flex flex-wrap items-center gap-2">
           <input type="color" data-field="color" value="${esc(m.color || '#0d9488')}" title="สี" class="w-8 h-8 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-0.5">
           <input data-field="name" required maxlength="100" value="${esc(m.name)}" placeholder="ชื่อ" class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-sm px-2 py-1 w-40">
@@ -68,6 +95,7 @@ export function mountMembers(root) {
       </td>
       <td>${createdCount}</td>
       <td>${pendingCount}</td>
+      <td class="px-4 py-2">${connectionBadgeHTML(m.id, connectionFor(m.id))}</td>
       <td class="px-4 py-2 text-right whitespace-nowrap">
         <button type="button" data-edit-member class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mr-3">แก้ไข</button>
         <button type="button" data-toggle-active class="text-xs text-amber-600 dark:text-amber-400 hover:underline mr-3">${m.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button>
@@ -86,7 +114,7 @@ export function mountMembers(root) {
       <table class="w-full text-sm">
         <thead>
           <tr class="text-left text-slate-500 dark:text-slate-400 text-xs border-b border-slate-100 dark:border-slate-700">
-            <th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th><th></th>
+            <th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th><th>ปฏิทิน Outlook</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -140,6 +168,18 @@ export function mountMembers(root) {
       toast.show(member.isActive ? `เปิดใช้งาน "${member.name}" แล้ว` : `ปิดใช้งาน "${member.name}" แล้ว`);
     } catch (err) {
       toast.show(`ดำเนินการไม่สำเร็จ: ${err.message}`);
+    }
+  }
+
+  async function handleDisconnectOutlook(memberId) {
+    if (!window.confirm('ยืนยันยกเลิกการเชื่อมต่อปฏิทิน Outlook?')) return;
+    try {
+      await api.del(`/calendar/connections/${memberId}`);
+      state.connections = state.connections.filter((c) => c.memberId !== memberId);
+      render();
+      toast.show('ยกเลิกการเชื่อมต่อแล้ว');
+    } catch (err) {
+      toast.show(`ยกเลิกไม่สำเร็จ: ${err.message}`);
     }
   }
 
@@ -210,10 +250,28 @@ export function mountMembers(root) {
         if (member) handleDelete(member);
       });
     });
+
+    root.querySelectorAll('[data-disconnect-outlook]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.closest('[data-member-id]').dataset.memberId);
+        handleDisconnectOutlook(id);
+      });
+    });
   }
 
   const unsubscribe = store.subscribe(render);
   render();
+
+  api
+    .get('/calendar/connections')
+    .then((res) => {
+      state.connections = res.items;
+      render();
+    })
+    .catch(() => {
+      // Non-fatal — the page still works with everyone shown as "not connected"
+      // (e.g. CALENDAR_SYNC_ENABLED=false in this deployment).
+    });
 
   return function unmount() {
     unsubscribe();

@@ -9,7 +9,8 @@ members ──┬──< cards.creator_id           (ผู้สร้าง �
           ├──< card_assignees             (ผู้รับผิดชอบ — หลายคน)
           ├──< subtasks.assignee_id       (ผู้ทำรายขั้น)
           ├──< comments.author_id
-          └──< time_logs.member_id
+          ├──< time_logs.member_id
+          └──< calendar_connections.member_id (1:1) ───< calendar_events
 
 boards ───< lists ───< cards ──┬──< subtasks
                                 ├──< comments
@@ -229,6 +230,43 @@ UPDATE lists SET pauses_sla = 1 WHERE slug = 'waiting';
 ```
 
 `lists.pauses_sla` เหมือน `is_done` ทุกประการ (ตั้งค่าตอน seed เท่านั้น ไม่มี UI แก้ทีหลัง) — คอลัมน์ที่ตั้งค่านี้ไว้ (ปัจจุบันคือ Waiting Vendor) จะไม่นับเวลาเสี่ยง/เกินกำหนด SLA ระหว่างที่การ์ดอยู่ในนั้น ดู `docs/05-business-rules.md` §2
+
+## 3.7 Migration 005 — ปฏิทินรวมของทีม (Outlook/M365 sync)
+
+ไฟล์: `server/db/migrations/005_calendar.sql`
+
+```sql
+CREATE TABLE calendar_connections (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id               INTEGER NOT NULL UNIQUE REFERENCES members(id) ON DELETE CASCADE,
+  provider                TEXT NOT NULL DEFAULT 'microsoft' CHECK (provider IN ('microsoft')),
+  account_email           TEXT NOT NULL,
+  access_token_enc        TEXT NOT NULL,             -- AES-256-GCM: iv:authTag:ciphertext (base64)
+  refresh_token_enc       TEXT NOT NULL,
+  access_token_expires_at TEXT NOT NULL,
+  status                  TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'needs_reconnect')),
+  last_synced_at          TEXT,
+  last_sync_error         TEXT,
+  created_at              TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_calendar_connections_status ON calendar_connections(status);
+
+CREATE TABLE calendar_events (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  connection_id  INTEGER NOT NULL REFERENCES calendar_connections(id) ON DELETE CASCADE,
+  member_id      INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  graph_event_id TEXT NOT NULL,
+  subject        TEXT NOT NULL,
+  start_at       TEXT NOT NULL,
+  end_at         TEXT NOT NULL,
+  is_all_day     INTEGER NOT NULL DEFAULT 0,
+  location       TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_calendar_events_range ON calendar_events(member_id, start_at, end_at);
+```
+
+หนึ่งแถวใน `calendar_connections` = การเชื่อมต่อ Outlook ของสมาชิกหนึ่งคน (`member_id UNIQUE` — เชื่อมต่อใหม่แทนที่ของเดิม ไม่สร้างซ้ำ) ส่วน `calendar_events` เป็นแคชที่ `server/services/calendar.service.js`'s `pollAllConnections()` (ticked จาก `server/index.js` ทุก `CALENDAR_POLL_MINUTES` นาที) ลบแล้ว insert ใหม่ทั้งหมดทุกรอบ (wipe-and-reinsert ต่อ connection ในช่วง "วันนี้ −1 วัน ถึง +14 วัน" — ไม่ทำ incremental diff) — token ทุกตัวเข้ารหัส AES-256-GCM ก่อนเก็บ (`server/utils/crypto.js`) ดู `docs/04-api.md` §12
 
 ## 4. Seed — ข้อมูลตั้งต้น
 

@@ -58,6 +58,10 @@
 | `utils/sla.js` | `calcSlaDueAt(priority, createdAt)` |
 | `utils/code.js` | `nextCardCode()` → `JC-000131` |
 | `utils/position.js` | `midPosition(prev, next)` สำหรับ drag & drop |
+| `routes/calendar.routes.js` | OAuth connect/callback (redirect) + connections/events (JSON) — ปฏิทินรวมของทีม |
+| `services/calendar.service.js` | OAuth flow, token refresh, poll Microsoft Graph, แคชอีเวนต์ |
+| `utils/crypto.js` | AES-256-GCM `encrypt`/`decrypt` สำหรับ token ที่เก็บใน DB |
+| `utils/oauthState.js` | เซ็น/ตรวจ OAuth `state` ด้วย HMAC (CSRF โดยไม่มีระบบ session) |
 
 ### Frontend
 
@@ -72,6 +76,7 @@
 | `components/create-modal.js` | ฟอร์มสร้าง (มีช่องผู้สร้าง + ขั้นตอน) |
 | `components/subtasks.js` | รายการขั้นตอน + drag + template |
 | `components/toast.js` | แจ้งเตือนมุมล่าง |
+| `views/calendar.view.js` | ปฏิทินรวมของทีม รายสัปดาห์ + filter รายสมาชิก |
 
 ## 4. Data Flow — ตัวอย่าง "ติ๊กขั้นตอนเสร็จ"
 
@@ -89,6 +94,26 @@
 7. ถ้ามี movedTo → toast แจ้ง
 ```
 
+## 4.5 Data Flow — "เชื่อมต่อ Outlook แล้วดูปฏิทินรวม"
+
+```text
+1. สมาชิกกด "เชื่อมต่อ Outlook" ที่หน้า Members → navigate ไป
+   GET /api/calendar/connect/:memberId (ไม่ใช่ AJAX — ต้องเป็น browser redirect จริง)
+2. calendar.service.js's buildAuthorizationUrl() เซ็น state (oauthState.js)
+   แล้ว redirect เบราว์เซอร์ไปหน้า login ของ Microsoft
+3. ผู้ใช้ login + ยินยอม → Microsoft redirect เบราว์เซอร์กลับมาที่
+   GET /api/calendar/callback?code=...&state=...
+4. handleOAuthCallback(): verify state → แลก code เป็น token → เข้ารหัส
+   (crypto.js) → เก็บ/อัปเดตแถวใน calendar_connections → redirect เบราว์เซอร์
+   ไป /#/calendar?connected=1 พร้อม poll รอบแรกแบบ fire-and-forget
+5. Scheduler ใน server/index.js เรียก pollAllConnections() ทุก
+   CALENDAR_POLL_MINUTES นาที: refresh token ถ้าใกล้หมดอายุ → ดึง
+   /me/calendarview จาก Graph → wipe+insert ลง calendar_events
+6. calendar.view.js โหลด GET /api/calendar/events?start=&end= (อ่านจากแคช
+   เสมอ ไม่รอ Graph) + GET /api/calendar/connections (สถานะ/สี filter chip)
+   มาวาดเป็นตารางรายสัปดาห์
+```
+
 ## 5. การตัดสินใจเชิงเทคนิค
 
 | เรื่อง | เลือก | เหตุผล |
@@ -100,3 +125,6 @@
 | ลำดับ (position) | float | แทรกกลางได้โดยไม่ต้อง update ทั้งคอลัมน์ |
 | ผู้สร้าง | เก็บเป็น FK → `members` | รายงาน "ใครสร้างกี่ใบ" ได้ |
 | Activity actor | เก็บเป็นข้อความ | ไม่ต้อง join, ประวัติไม่เสียถ้าลบสมาชิก |
+| Outlook sync | Polling ไม่ใช้ webhook | ระบบรันในเครือข่ายองค์กร ไม่มี public HTTPS endpoint รับ Graph push notification ได้ |
+| OAuth client | เขียนเอง (native `fetch`) ไม่ใช้ `@azure/msal-node` | Microsoft OAuth/Graph เป็น REST ธรรมดา, โปรเจกต์นี้ไม่มี HTTP client dependency เลยสักตัว (raw SQL, ไม่มี ORM) — ตรงตามข้อ 6 ของ `CLAUDE.md` ที่ไม่เพิ่ม dependency โดยไม่จำเป็น |
+| Calendar event cache | wipe-and-reinsert ต่อรอบ poll | ง่ายกว่า incremental diff/delta query มาก สำหรับทีม 5-15 คน, อีเวนต์ที่ยกเลิก/ย้ายหายไปเองโดยไม่ต้อง track การลบ |

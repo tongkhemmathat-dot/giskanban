@@ -11,6 +11,7 @@ import { mountMembers } from './views/members.view.js';
 import { mountDashboard } from './views/dashboard.view.js';
 import { mountTemplates } from './views/templates.view.js';
 import { mountRecurring } from './views/recurring.view.js';
+import { mountCalendar } from './views/calendar.view.js';
 import { openCreateModal } from './components/create-modal.js';
 import { initTheme, toggleTheme, getTheme } from './theme.js';
 import { initTextSize, toggleTextSize, getTextSize } from './textsize.js';
@@ -19,7 +20,7 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 }
 
-const ROUTES = ['#/board', '#/dashboard', '#/mytasks', '#/members', '#/templates', '#/recurring'];
+const ROUTES = ['#/board', '#/dashboard', '#/mytasks', '#/members', '#/templates', '#/recurring', '#/calendar'];
 const DEFAULT_ROUTE = '#/board';
 
 const mainEl = document.getElementById('main-content');
@@ -79,6 +80,8 @@ function renderRoute() {
     currentUnmount = mountTemplates(mainEl);
   } else if (hash === '#/recurring') {
     currentUnmount = mountRecurring(mainEl);
+  } else if (hash === '#/calendar') {
+    currentUnmount = mountCalendar(mainEl);
   }
 }
 

@@ -272,7 +272,60 @@ Body ตอนสร้าง (`POST /api/recurring-cards`):
 - `isActive` (PATCH เท่านั้น): `false` = หยุดสร้างใบงานอัตโนมัติชั่วคราวโดยไม่ต้องลบ rule
 - Scheduler ใน `server/index.js` เช็คทุก 5 นาที สร้างใบงานให้ทุก rule ที่ `nextRunAt` ถึงกำหนดแล้ว (persistent process เท่านั้น เหมือนอีเมลสรุป SLA — ไม่ทำงานบน deploy แบบ serverless)
 
-## 11. Health
+## 12. Calendar (ปฏิทินรวมของทีม — Outlook/M365 sync)
+
+แต่ละสมาชิกเชื่อมต่อ Outlook/M365 ของตัวเองผ่าน Microsoft Graph OAuth
+(authorization-code flow, ไม่มี SDK ใดๆ — เรียก REST ตรงด้วย `fetch`) ระบบ
+poll ดึงอีเวนต์เป็นรอบ (ไม่ใช้ webhook เพราะไม่มี public HTTPS endpoint) แล้ว
+แคชไว้ให้หน้าเว็บอ่าน ต้องตั้งค่า Azure AD app registration ก่อนใช้งานจริง
+(ดู `docs/09-deployment.md`)
+
+| Method | Path | ชนิด | หมายเหตุ |
+|---|---|---|---|
+| GET | `/api/calendar/connect/:memberId` | **redirect** | พาไปหน้า login ของ Microsoft — ใช้เป็น `<a href>` ธรรมดา ไม่ใช่ AJAX |
+| GET | `/api/calendar/callback` | **redirect** | Microsoft redirect กลับมาที่นี่พร้อม `?code&state` — จบด้วย redirect ไป `/#/calendar?connected=1` หรือ `?error=...` เสมอ |
+| GET | `/api/calendar/connections` | JSON | `{ items: [...] }` สถานะการเชื่อมต่อทุกคน (ไม่มี token ปนมาในนี้) |
+| DELETE | `/api/calendar/connections/:memberId` | JSON | ยกเลิกการเชื่อมต่อ — `204` |
+| GET | `/api/calendar/events?start=&end=` | JSON | `{ items: [...] }` อีเวนต์รวมของทุกคนในช่วงวันที่ (`YYYY-MM-DD`) |
+
+`GET /api/calendar/connections` ตัวอย่าง:
+
+```json
+{
+  "items": [
+    {
+      "memberId": 1, "memberName": "สมชาย ก.", "memberColor": "#6366f1",
+      "accountEmail": "somchai@company.local",
+      "status": "active",
+      "lastSyncedAt": "2026-09-08T10:05",
+      "lastSyncError": null
+    }
+  ]
+}
+```
+
+`GET /api/calendar/events` ตัวอย่าง:
+
+```json
+{
+  "items": [
+    {
+      "memberId": 1, "memberName": "สมชาย ก.", "memberColor": "#6366f1",
+      "subject": "ประชุมทีมประจำสัปดาห์",
+      "startAt": "2026-09-10T10:00", "endAt": "2026-09-10T11:00",
+      "isAllDay": false, "location": "ห้องประชุม A"
+    }
+  ]
+}
+```
+
+- `status`: `"active"` หรือ `"needs_reconnect"` (refresh token หมดอายุ/ถูกเพิกถอน — ต้องกดเชื่อมต่อใหม่ที่หน้า Members)
+- Token ทุกตัว (access/refresh) เข้ารหัส AES-256-GCM ก่อนเก็บ (`server/utils/crypto.js`) — ไม่มี endpoint ใดคืนค่า token ออกมา
+- แคชอีเวนต์เป็นแบบ wipe-and-reinsert ต่อรอบ poll ในช่วง "วันนี้ −1 วัน ถึง +14 วัน" — `GET /events` อ่านจากแคชเสมอ ไม่เรียก Graph สด
+- Scheduler ใน `server/index.js` poll ทุก `CALENDAR_POLL_MINUTES` นาที (ปิดโดยดีฟอลต์ผ่าน `CALENDAR_SYNC_ENABLED`, persistent process เท่านั้น เหมือน recurring-cards ข้อ 10)
+- ยกเลิกการเชื่อมต่อ = ลบ token ฝั่งเราเท่านั้น (Microsoft ไม่มี public revoke endpoint สำหรับ flow นี้)
+
+## 13. Health
 
 `GET /api/health` → `{ "ok": true, "db": "connected", "version": "1.0.0", "uptime": 3600 }`
 

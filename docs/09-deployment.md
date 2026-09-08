@@ -25,6 +25,16 @@ SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=jobcard-pro@company.local
+
+# ปฏิทินรวมของทีม (Outlook/M365 via Microsoft Graph) — ไม่บังคับ, ดูขั้นตอนตั้งค่าที่ §4.5
+CALENDAR_SYNC_ENABLED=false
+CALENDAR_POLL_MINUTES=10
+MS_TENANT_ID=
+MS_CLIENT_ID=
+MS_CLIENT_SECRET=
+PUBLIC_BASE_URL=https://jobcard.company.local
+CALENDAR_ENCRYPTION_KEY=      # 32 ไบต์ base64 — node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+CALENDAR_STATE_SECRET=        # secret แยกต่างหาก สร้างวิธีเดียวกับด้านบน
 ```
 
 > ❗ ไม่มี `JWT_SECRET` / `ADMIN_*` โดยเจตนา — ระบบนี้ไม่มี auth ในแอป
@@ -119,6 +129,25 @@ volumes:
 ```bash
 docker run --rm caddy caddy hash-password --plaintext 'รหัสของทีม'
 ```
+
+## 4.5 ปฏิทินรวมของทีม (Outlook/M365) — ตั้งค่า Azure AD
+
+ไม่บังคับ (`CALENDAR_SYNC_ENABLED=false` โดยดีฟอลต์) — ต้องมีคนตั้งค่าฝั่ง
+Azure Portal ก่อนเปิดใช้งาน (ทำนอกโค้ด, ต้องมีสิทธิ์แอดมิน tenant):
+
+1. Azure Portal → Azure Active Directory → App registrations → New registration
+2. ตั้งชื่อ เช่น "JobCard Pro Calendar Sync"
+3. Supported account types: **Single tenant** (องค์กรเดียว — ไม่ต้องมี admin consent แบบ multi-tenant)
+4. Redirect URI: platform **Web**, URI = `https://<DOMAIN>/api/calendar/callback` (โดเมน internal เดิม ใช้ได้เพราะเป็น browser-mediated redirect ไม่ใช่ webhook — ไม่ต้อง public internet)
+5. Certificates & secrets → New client secret → คัดลอกค่า **value** ทันที (แสดงครั้งเดียว) → `MS_CLIENT_SECRET`
+6. API permissions → Add a permission → Microsoft Graph → Delegated → เพิ่ม `Calendars.Read`, `offline_access`, `User.Read` → "Grant admin consent for {tenant}"
+7. คัดลอก **Application (client) ID** → `MS_CLIENT_ID` และ **Directory (tenant) ID** → `MS_TENANT_ID` จากหน้า Overview
+8. ตรวจว่า `PUBLIC_BASE_URL`/`DOMAIN` เข้าถึงผ่าน HTTPS ได้จริง (Microsoft บังคับ redirect URI เป็น `https` — Caddy เสิร์ฟ TLS ให้อยู่แล้ว)
+9. ตั้งค่า `CALENDAR_ENCRYPTION_KEY`/`CALENDAR_STATE_SECRET` ตามคำสั่งใน `.env.example` ด้านบน แล้วตั้ง `CALENDAR_SYNC_ENABLED=true`
+
+> Caddy's `basic_auth` ครอบทั้งโดเมนอยู่แล้ว รวมถึง `/api/calendar/callback` —
+> เบราว์เซอร์ผู้ใช้มี credential แคชไว้แล้วตอนเปิดเว็บ ตอน redirect กลับจาก
+> Microsoft จึงผ่านได้เลย ไม่ต้องแก้ Caddyfile เพิ่ม
 
 ## 5. ขั้นตอน Deploy ครั้งแรก
 

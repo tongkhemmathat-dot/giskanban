@@ -19,8 +19,10 @@ import timelogsRouter from './routes/timelogs.routes.js';
 import labelsRouter from './routes/labels.routes.js';
 import reportsRouter from './routes/reports.routes.js';
 import recurringRouter from './routes/recurring.routes.js';
+import calendarRouter from './routes/calendar.routes.js';
 import { sendSlaDigest } from './services/notify.service.js';
 import { runDueRecurring } from './services/recurring.service.js';
+import { pollAllConnections } from './services/calendar.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -65,6 +67,7 @@ app.use('/api', timelogsRouter); // spans /api/cards/:id/time-logs and /api/time
 app.use('/api/labels', labelsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/recurring-cards', recurringRouter);
+app.use('/api/calendar', calendarRouter);
 
 app.use(express.static(PUBLIC_DIR));
 
@@ -116,6 +119,22 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       console.error('สร้างใบงานประจำไม่สำเร็จ:', err);
     }
   }, 5 * 60_000);
+
+  // ปฏิทินรวมของทีม (Outlook/M365 sync via Microsoft Graph, docs/07-roadmap.md
+  // backlog) — off by default (needs real Azure AD app credentials), same
+  // opt-in-flag shape as NOTIFY_ENABLED above. Polls every
+  // CALENDAR_POLL_MINUTES since the app has no public HTTPS endpoint to
+  // receive Graph webhook push notifications on.
+  if (process.env.CALENDAR_SYNC_ENABLED === 'true') {
+    const pollMinutes = Number(process.env.CALENDAR_POLL_MINUTES) || 10;
+    setInterval(() => {
+      pollAllConnections()
+        .then(({ synced, failed }) => {
+          if (synced || failed) console.warn(`ซิงก์ปฏิทินทีม: สำเร็จ ${synced}, ล้มเหลว ${failed}`);
+        })
+        .catch((err) => console.error('ซิงก์ปฏิทินทีมไม่สำเร็จ:', err));
+    }, pollMinutes * 60_000);
+  }
 }
 
 export default app;
