@@ -3,36 +3,21 @@ import request from 'supertest';
 import app from '../../server/index.js';
 import { useTestDb } from '../helpers/testDb.js';
 import { encrypt, decrypt } from '../../server/utils/crypto.js';
-import { signState } from '../../server/utils/oauthState.js';
 import { pollOneConnection, pollAllConnections } from '../../server/services/calendar.service.js';
 
-function jsonResponse(status, data) {
-  return { ok: status >= 200 && status < 300, status, json: async () => data };
+const ICS_URL = 'https://outlook.office365.com/owa/calendar/abc123/calendar.ics';
+
+function icsResponse(status, body) {
+  return { ok: status >= 200 && status < 300, status, text: async () => body, json: async () => ({}) };
 }
 
-// Dispatches a mocked `fetch` by URL so each test only needs to describe
-// what Microsoft's token / /me / /me/calendarview endpoints should answer —
-// mirrors real Graph shapes closely enough for calendar.service.js's parsing.
-function mockGraphFetch({ token, me, calendarView } = {}) {
-  return vi.fn(async (url, init = {}) => {
-    const u = String(url);
-    if (u.includes('/oauth2/v2.0/token')) {
-      const params = new URLSearchParams(init.body);
-      return token
-        ? token(params)
-        : jsonResponse(200, { access_token: 'new-access-token', refresh_token: 'new-refresh-token', expires_in: 3600 });
-    }
-    if (u.includes('/me/calendarview')) {
-      return calendarView ? calendarView() : jsonResponse(200, { value: [] });
-    }
-    if (u.endsWith('/me')) {
-      return me ? me() : jsonResponse(200, { mail: 'somchai@company.local' });
-    }
-    throw new Error(`Unexpected fetch call to ${u}`);
-  });
+function icsWithEvent({ uid = 'evt-1', subject = 'ประชุมทีม', start = '20260910T100000Z', end = '20260910T110000Z' } = {}) {
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', `UID:${uid}`, `SUMMARY:${subject}`, `DTSTART:${start}`, `DTEND:${end}`, 'END:VEVENT', 'END:VCALENDAR'].join(
+    '\n',
+  );
 }
 
-describe('Calendar sync API', () => {
+describe('Calendar sync API (.ics feeds)', () => {
   const getDb = useTestDb();
 
   afterEach(() => {
@@ -43,113 +28,88 @@ describe('Calendar sync API', () => {
     return getDb().prepare('SELECT id FROM members WHERE name = ?').get(name).id;
   }
 
-  function insertConnection({ member, accountEmail = 'existing@company.local', accessToken = 'old-access', refreshToken = 'old-refresh', expiresAt }) {
+  function insertConnection({ member, icsUrl = ICS_URL, status = 'active' }) {
     const info = getDb()
-      .prepare(
-        `INSERT INTO calendar_connections (member_id, account_email, access_token_enc, refresh_token_enc, access_token_expires_at)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(member, accountEmail, encrypt(accessToken), encrypt(refreshToken), expiresAt);
+      .prepare(`INSERT INTO calendar_connections (member_id, ics_url_enc, status) VALUES (?, ?, ?)`)
+      .run(member, encrypt(icsUrl), status);
     return Number(info.lastInsertRowid);
   }
 
-  const FAR_FUTURE = '2099-01-01 00:00:00';
-  const PAST = '2020-01-01 00:00:00';
-
-  it('CAL1: GET /connect/:memberId redirects to Microsoft with client_id + state for a real member', async () => {
-    const res = await request(app).get(`/api/calendar/connect/${memberId()}`);
-    expect(res.status).toBe(302);
-    const location = new URL(res.headers.location);
-    expect(location.hostname).toBe('login.microsoftonline.com');
-    expect(location.searchParams.get('client_id')).toBe('test-client-id');
-    expect(location.searchParams.get('state')).toBeTruthy();
+  it('CAL1: POST /connections rejects a non-https URL (VALIDATION_ERROR)', async () => {
+    const res = await request(app).post('/api/calendar/connections').send({ memberId: memberId(), icsUrl: 'http://insecure.example/cal.ics' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('CAL2: GET /connect/:memberId for an unknown member -> 404 NOT_FOUND', async () => {
-    const res = await request(app).get('/api/calendar/connect/999999');
+  it('CAL2: POST /connections for an unknown member -> 404 NOT_FOUND', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(200, icsWithEvent())));
+    const res = await request(app).post('/api/calendar/connections').send({ memberId: 999999, icsUrl: ICS_URL });
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
 
-  it('CAL3: GET /callback with a valid code+state creates a connection and redirects', async () => {
-    vi.stubGlobal('fetch', mockGraphFetch());
-    const id = memberId();
-    const state = signState(id);
+  it('CAL3: POST /connections rejects a URL that does not serve an .ics file', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(200, '<html>not a calendar</html>')));
+    const res = await request(app).post('/api/calendar/connections').send({ memberId: memberId(), icsUrl: ICS_URL });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_ICS');
+  });
 
-    const res = await request(app).get('/api/calendar/callback').query({ code: 'auth-code-123', state });
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/#/calendar?connected=1');
+  it('CAL4: POST /connections rejects a URL that fails to fetch', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(404, '')));
+    const res = await request(app).post('/api/calendar/connections').send({ memberId: memberId(), icsUrl: ICS_URL });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('CAL5: POST /connections succeeds and stores the URL encrypted (never plaintext)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(200, icsWithEvent({ start: '20260910T100000Z', end: '20260910T110000Z' }))));
+    const id = memberId();
+
+    const res = await request(app).post('/api/calendar/connections').send({ memberId: id, icsUrl: ICS_URL });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ memberId: id, status: 'active' });
 
     const row = getDb().prepare('SELECT * FROM calendar_connections WHERE member_id = ?').get(id);
     expect(row).toBeTruthy();
-    expect(row.account_email).toBe('somchai@company.local');
-    expect(row.access_token_enc).not.toBe('new-access-token'); // stored encrypted, not plaintext
-    expect(row.status).toBe('active');
+    expect(decrypt(row.ics_url_enc)).toBe(ICS_URL);
+    expect(row.ics_url_enc).not.toContain(ICS_URL); // never stored in plaintext
   });
 
-  it('CAL4: GET /callback with a tampered state redirects with an error and creates no connection', async () => {
-    vi.stubGlobal('fetch', mockGraphFetch());
+  it('CAL6: connecting again for the same member replaces the existing connection, not a duplicate', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(200, icsWithEvent())));
     const id = memberId();
-    const state = signState(id).slice(0, -1) + (signState(id).endsWith('a') ? 'b' : 'a');
+    await request(app).post('/api/calendar/connections').send({ memberId: id, icsUrl: ICS_URL });
+    await request(app).post('/api/calendar/connections').send({ memberId: id, icsUrl: 'https://outlook.office365.com/owa/calendar/other/calendar.ics' });
 
-    const res = await request(app).get('/api/calendar/callback').query({ code: 'auth-code-123', state });
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^\/#\/calendar\?error=/);
-    expect(getDb().prepare('SELECT * FROM calendar_connections WHERE member_id = ?').get(id)).toBeUndefined();
+    const rows = getDb().prepare('SELECT * FROM calendar_connections WHERE member_id = ?').all(id);
+    expect(rows).toHaveLength(1);
+    expect(decrypt(rows[0].ics_url_enc)).toBe('https://outlook.office365.com/owa/calendar/other/calendar.ics');
   });
 
-  it('CAL5: GET /callback with ?error= (user declined consent) redirects with error and never calls Microsoft', async () => {
-    const fetchMock = mockGraphFetch();
-    vi.stubGlobal('fetch', fetchMock);
-
-    const res = await request(app).get('/api/calendar/callback').query({ error: 'access_denied', error_description: 'user cancelled' });
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^\/#\/calendar\?error=/);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('CAL6: pollOneConnection refreshes an expiring access token and caches fetched events', async () => {
+  it('CAL7: pollOneConnection caches parsed events with the correct fields', async () => {
     const id = memberId();
-    const connectionId = insertConnection({ member: id, expiresAt: PAST });
+    const connectionId = insertConnection({ member: id });
     vi.stubGlobal(
       'fetch',
-      mockGraphFetch({
-        calendarView: () =>
-          jsonResponse(200, {
-            value: [
-              {
-                id: 'evt-1',
-                subject: 'ประชุมทีม',
-                start: { dateTime: '2026-09-10T10:00:00.0000000' },
-                end: { dateTime: '2026-09-10T11:00:00.0000000' },
-                isAllDay: false,
-                location: { displayName: 'ห้องประชุม A' },
-              },
-            ],
-          }),
-      }),
+      vi.fn(async () => icsResponse(200, icsWithEvent({ subject: 'นัดลูกค้า', start: '20260911T030000Z', end: '20260911T040000Z' }))),
     );
 
     await pollOneConnection(connectionId);
 
     const events = getDb().prepare('SELECT * FROM calendar_events WHERE connection_id = ?').all(connectionId);
     expect(events).toHaveLength(1);
-    expect(events[0].subject).toBe('ประชุมทีม');
-    expect(events[0].start_at).toBe('2026-09-10 10:00:00');
+    expect(events[0]).toMatchObject({ subject: 'นัดลูกค้า', start_at: '2026-09-11 03:00:00', end_at: '2026-09-11 04:00:00' });
 
     const conn = getDb().prepare('SELECT * FROM calendar_connections WHERE id = ?').get(connectionId);
-    expect(decrypt(conn.access_token_enc)).toBe('new-access-token');
     expect(conn.status).toBe('active');
     expect(conn.last_synced_at).toBeTruthy();
   });
 
-  it('CAL7: an invalid_grant refresh response marks the connection needs_reconnect', async () => {
+  it('CAL8: a 404 from the feed marks the connection needs_reconnect', async () => {
     const id = memberId();
-    const connectionId = insertConnection({ member: id, expiresAt: PAST });
-    vi.stubGlobal(
-      'fetch',
-      mockGraphFetch({ token: () => jsonResponse(400, { error: 'invalid_grant', error_description: 'token revoked' }) }),
-    );
+    const connectionId = insertConnection({ member: id });
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(404, '')));
 
     await pollOneConnection(connectionId);
 
@@ -157,18 +117,27 @@ describe('Calendar sync API', () => {
     expect(conn.status).toBe('needs_reconnect');
 
     const res = await request(app).get('/api/calendar/connections');
-    const status = res.body.items.find((c) => c.memberId === id);
-    expect(status.status).toBe('needs_reconnect');
+    expect(res.body.items.find((c) => c.memberId === id).status).toBe('needs_reconnect');
   });
 
-  it('CAL8: DELETE /connections/:memberId removes the connection and cascades its cached events', async () => {
+  it('CAL9: a transient error (500) keeps the connection active but records the error', async () => {
     const id = memberId();
-    const connectionId = insertConnection({ member: id, expiresAt: FAR_FUTURE });
+    const connectionId = insertConnection({ member: id });
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(500, '')));
+
+    const result = await pollAllConnections();
+    expect(result.failed).toBe(1);
+
+    const conn = getDb().prepare('SELECT * FROM calendar_connections WHERE id = ?').get(connectionId);
+    expect(conn.status).toBe('active');
+    expect(conn.last_sync_error).toBeTruthy();
+  });
+
+  it('CAL10: DELETE /connections/:memberId removes the connection and cascades its cached events', async () => {
+    const id = memberId();
+    const connectionId = insertConnection({ member: id });
     getDb()
-      .prepare(
-        `INSERT INTO calendar_events (connection_id, member_id, graph_event_id, subject, start_at, end_at)
-         VALUES (?, ?, 'evt-x', 'x', '2026-09-10 10:00:00', '2026-09-10 11:00:00')`,
-      )
+      .prepare(`INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at) VALUES (?, ?, 'e1', 'x', '2026-09-10 10:00:00', '2026-09-10 11:00:00')`)
       .run(connectionId, id);
 
     const res = await request(app).delete(`/api/calendar/connections/${id}`);
@@ -177,69 +146,46 @@ describe('Calendar sync API', () => {
     expect(getDb().prepare('SELECT * FROM calendar_events WHERE connection_id = ?').all(connectionId)).toHaveLength(0);
   });
 
-  it('CAL9: GET /events merges events from multiple members and filters by date range', async () => {
+  it('CAL11: GET /events merges events from multiple members and filters by date range', async () => {
     const somchai = memberId('สมชาย ก.');
     const natthaphon = memberId('ณัฐพล ว.');
-    const connA = insertConnection({ member: somchai, expiresAt: FAR_FUTURE });
-    const connB = insertConnection({ member: natthaphon, expiresAt: FAR_FUTURE });
+    const connA = insertConnection({ member: somchai });
+    const connB = insertConnection({ member: natthaphon });
 
     const insertEvent = getDb().prepare(
-      `INSERT INTO calendar_events (connection_id, member_id, graph_event_id, subject, start_at, end_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at) VALUES (?, ?, ?, ?, ?, ?)`,
     );
-    insertEvent.run(connA, somchai, 'in-range', 'อยู่ในช่วง', '2026-09-10 09:00:00', '2026-09-10 10:00:00');
-    insertEvent.run(connB, natthaphon, 'also-in-range', 'อีกงาน', '2026-09-11 09:00:00', '2026-09-11 10:00:00');
-    insertEvent.run(connA, somchai, 'out-of-range', 'นอกช่วง', '2026-10-01 09:00:00', '2026-10-01 10:00:00');
+    insertEvent.run(connA, somchai, 'e1', 'อยู่ในช่วง', '2026-09-10 09:00:00', '2026-09-10 10:00:00');
+    insertEvent.run(connB, natthaphon, 'e2', 'อีกงาน', '2026-09-11 09:00:00', '2026-09-11 10:00:00');
+    insertEvent.run(connA, somchai, 'e3', 'นอกช่วง', '2026-10-01 09:00:00', '2026-10-01 10:00:00');
 
     const res = await request(app).get('/api/calendar/events').query({ start: '2026-09-08', end: '2026-09-14' });
     expect(res.status).toBe(200);
-    const subjects = res.body.items.map((e) => e.subject).sort();
-    expect(subjects).toEqual(['อยู่ในช่วง', 'อีกงาน']);
+    expect(res.body.items.map((e) => e.subject).sort()).toEqual(['อยู่ในช่วง', 'อีกงาน']);
     expect(res.body.items.every((e) => e.memberName && e.memberColor)).toBe(true);
   });
 
-  it('CAL10: pollAllConnections keeps syncing other connections when one has a hard failure', async () => {
+  it('CAL12: pollAllConnections keeps syncing other connections when one has a hard failure', async () => {
     const somchai = memberId('สมชาย ก.');
     const natthaphon = memberId('ณัฐพล ว.');
-    // Both access tokens are still valid (far-future expiry), so this
-    // exercises calendarview failures, not token-refresh failures — inserted
-    // in this order so pollAllConnections (ORDER BY id) processes สมชาย first.
-    const connA = insertConnection({ member: somchai, expiresAt: FAR_FUTURE });
-    const connB = insertConnection({ member: natthaphon, expiresAt: FAR_FUTURE });
+    const connA = insertConnection({ member: somchai });
+    const connB = insertConnection({ member: natthaphon });
 
-    let calendarViewCalls = 0;
+    let calls = 0;
     vi.stubGlobal(
       'fetch',
-      mockGraphFetch({
-        calendarView: () => {
-          calendarViewCalls += 1;
-          if (calendarViewCalls === 1) {
-            return jsonResponse(200, {
-              value: [
-                {
-                  id: 'evt-a',
-                  subject: 'งานของสมชาย',
-                  start: { dateTime: '2026-09-10T09:00:00.0000000' },
-                  end: { dateTime: '2026-09-10T10:00:00.0000000' },
-                },
-              ],
-            });
-          }
-          return { ok: false, status: 500, json: async () => ({ error: { message: 'Graph unavailable' } }) };
-        },
+      vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) return icsResponse(200, icsWithEvent({ subject: 'งานของสมชาย' }));
+        return icsResponse(500, '');
       }),
     );
 
     const result = await pollAllConnections();
     expect(result.synced).toBe(1);
     expect(result.failed).toBe(1);
-    expect(calendarViewCalls).toBe(2);
 
     expect(getDb().prepare('SELECT * FROM calendar_events WHERE connection_id = ?').all(connA)).toHaveLength(1);
     expect(getDb().prepare('SELECT * FROM calendar_events WHERE connection_id = ?').all(connB)).toHaveLength(0);
-
-    const connBRow = getDb().prepare('SELECT * FROM calendar_connections WHERE id = ?').get(connB);
-    expect(connBRow.status).toBe('active'); // a transient Graph error doesn't force reconnect
-    expect(connBRow.last_sync_error).toBeTruthy();
   });
 });

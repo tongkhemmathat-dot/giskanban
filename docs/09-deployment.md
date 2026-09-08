@@ -26,15 +26,10 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=jobcard-pro@company.local
 
-# ปฏิทินรวมของทีม (Outlook/M365 via Microsoft Graph) — ไม่บังคับ, ดูขั้นตอนตั้งค่าที่ §4.5
+# ปฏิทินรวมของทีม (สมาชิกวางลิงก์ .ics ของตัวเอง) — ไม่บังคับ, ดูขั้นตอนที่ §4.5
 CALENDAR_SYNC_ENABLED=false
 CALENDAR_POLL_MINUTES=10
-MS_TENANT_ID=
-MS_CLIENT_ID=
-MS_CLIENT_SECRET=
-PUBLIC_BASE_URL=https://jobcard.company.local
 CALENDAR_ENCRYPTION_KEY=      # 32 ไบต์ base64 — node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
-CALENDAR_STATE_SECRET=        # secret แยกต่างหาก สร้างวิธีเดียวกับด้านบน
 ```
 
 > ❗ ไม่มี `JWT_SECRET` / `ADMIN_*` โดยเจตนา — ระบบนี้ไม่มี auth ในแอป
@@ -130,24 +125,22 @@ volumes:
 docker run --rm caddy caddy hash-password --plaintext 'รหัสของทีม'
 ```
 
-## 4.5 ปฏิทินรวมของทีม (Outlook/M365) — ตั้งค่า Azure AD
+## 4.5 ปฏิทินรวมของทีม — วิธี publish ปฏิทิน Outlook เป็นลิงก์ .ics
 
-ไม่บังคับ (`CALENDAR_SYNC_ENABLED=false` โดยดีฟอลต์) — ต้องมีคนตั้งค่าฝั่ง
-Azure Portal ก่อนเปิดใช้งาน (ทำนอกโค้ด, ต้องมีสิทธิ์แอดมิน tenant):
+ไม่บังคับ (`CALENDAR_SYNC_ENABLED=false` โดยดีฟอลต์) — ไม่ต้องตั้งค่า Azure AD
+หรือขอสิทธิ์ IT ใดๆ แต่ละสมาชิกทำเองได้ในเบราว์เซอร์:
 
-1. Azure Portal → Azure Active Directory → App registrations → New registration
-2. ตั้งชื่อ เช่น "JobCard Pro Calendar Sync"
-3. Supported account types: **Single tenant** (องค์กรเดียว — ไม่ต้องมี admin consent แบบ multi-tenant)
-4. Redirect URI: platform **Web**, URI = `https://<DOMAIN>/api/calendar/callback` (โดเมน internal เดิม ใช้ได้เพราะเป็น browser-mediated redirect ไม่ใช่ webhook — ไม่ต้อง public internet)
-5. Certificates & secrets → New client secret → คัดลอกค่า **value** ทันที (แสดงครั้งเดียว) → `MS_CLIENT_SECRET`
-6. API permissions → Add a permission → Microsoft Graph → Delegated → เพิ่ม `Calendars.Read`, `offline_access`, `User.Read` → "Grant admin consent for {tenant}"
-7. คัดลอก **Application (client) ID** → `MS_CLIENT_ID` และ **Directory (tenant) ID** → `MS_TENANT_ID` จากหน้า Overview
-8. ตรวจว่า `PUBLIC_BASE_URL`/`DOMAIN` เข้าถึงผ่าน HTTPS ได้จริง (Microsoft บังคับ redirect URI เป็น `https` — Caddy เสิร์ฟ TLS ให้อยู่แล้ว)
-9. ตั้งค่า `CALENDAR_ENCRYPTION_KEY`/`CALENDAR_STATE_SECRET` ตามคำสั่งใน `.env.example` ด้านบน แล้วตั้ง `CALENDAR_SYNC_ENABLED=true`
+1. เปิด Outlook บนเว็บ (outlook.office.com หรือ outlook.live.com) → ⚙️ Settings → Calendar → **Shared calendars**
+2. เลือก **Publish a calendar** → เลือกปฏิทินที่ต้องการ (ปกติคือ Calendar หลัก) → ระดับสิทธิ์เลือก **Can view all details** (ถ้าเลือก "Can view only free/busy" ระบบจะไม่มีหัวข้อ/สถานที่ให้แสดง)
+3. กด **Publish** → คัดลอกลิงก์ **ICS** (ไม่ใช่ลิงก์ HTML) ที่ขึ้นต้นด้วย `https://outlook.office365.com/owa/calendar/...` หรือ `https://outlook.live.com/owa/calendar/...`
+4. เอาลิงก์นี้ไปวางที่หน้า **สมาชิก** ในระบบ (ปุ่ม "เชื่อมต่อปฏิทิน (iCal)" ต่อแถวของตัวเอง)
+5. เปิด `CALENDAR_SYNC_ENABLED=true` และตั้งค่า `CALENDAR_ENCRYPTION_KEY` (คำสั่งสร้างอยู่ใน `.env.example`) ก่อน deploy — ค่านี้ใช้เข้ารหัสลิงก์ .ics ที่เก็บใน DB (เป็นลิงก์แบบ bearer token — ใครมีลิงก์ก็เห็นปฏิทินได้ จึงต้องเข้ารหัสไว้)
 
-> Caddy's `basic_auth` ครอบทั้งโดเมนอยู่แล้ว รวมถึง `/api/calendar/callback` —
-> เบราว์เซอร์ผู้ใช้มี credential แคชไว้แล้วตอนเปิดเว็บ ตอน redirect กลับจาก
-> Microsoft จึงผ่านได้เลย ไม่ต้องแก้ Caddyfile เพิ่ม
+> ลิงก์ที่ publish แบบนี้เป็น URL สาธารณะบนอินเทอร์เน็ต (ไม่ผูกกับบัญชี —
+> ใครมีลิงก์ก็เปิดดูได้ ไม่มีระบบ revoke สิทธิ์แยกจากการ unpublish/สร้างลิงก์
+> ใหม่ทั้งหมด) — แจ้งสมาชิกให้ระวังไม่แชร์ลิงก์นี้ต่อ และนัดประชุมที่เกิดซ้ำ
+> (recurring) จะแสดงผลถูกต้องเฉพาะรูปแบบทั่วไป (รายวัน/รายสัปดาห์/รายเดือน
+> แบบง่าย) ดู `server/utils/ics.js`'s module comment สำหรับขอบเขตที่รองรับ
 
 ## 5. ขั้นตอน Deploy ครั้งแรก
 

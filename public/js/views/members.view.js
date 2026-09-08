@@ -16,34 +16,41 @@ function isDoneListId(listId) {
   return store.state.lists.find((l) => l.id === listId)?.isDone === 1;
 }
 
-// ปฏิทิน Outlook ต่อสมาชิก (docs/07-roadmap.md backlog: ปฏิทินรวมของทีม) — ไม่
-// อยู่ใน bootstrap/store.js เหมือนกับ recurring rules ที่ views/recurring.view.js
-// ดึงเอง เพราะไม่มีหน้าอื่นต้องรู้สถานะนี้. "เชื่อมต่อ Outlook" เป็น `<a href>`
-// ธรรมดา ไม่ใช่ api.post — ต้อง navigate จริงเพื่อตาม redirect ไปหน้า login
-// ของ Microsoft แล้ววนกลับมา (api.js's fetch-only rule ใช้ไม่ได้กับ flow นี้).
-function connectionBadgeHTML(memberId, conn) {
-  if (!conn) {
-    return `<a href="/api/calendar/connect/${memberId}" data-connect-outlook class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อ Outlook</a>`;
-  }
-  if (conn.status === 'needs_reconnect') {
-    return `
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">ต้องเชื่อมต่อใหม่</span>
-      <a href="/api/calendar/connect/${conn.memberId}" data-connect-outlook class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อ</a>
-    </div>`;
-  }
-  return `
-  <div class="flex items-center gap-2">
-    <span class="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[10rem]" title="${esc(conn.accountEmail)}">${esc(conn.accountEmail)}</span>
-    <button type="button" data-disconnect-outlook class="text-xs text-rose-600 dark:text-rose-400 hover:underline">ยกเลิก</button>
-  </div>`;
-}
-
 export function mountMembers(root) {
-  const state = { editingId: null, creating: false, connections: [] };
+  const state = { editingId: null, creating: false, connections: [], connectingMemberId: null };
 
   function connectionFor(memberId) {
     return state.connections.find((c) => c.memberId === memberId) || null;
+  }
+
+  // ปฏิทิน .ics ต่อสมาชิก (docs/07-roadmap.md backlog: ปฏิทินรวมของทีม) — ไม่
+  // อยู่ใน bootstrap/store.js เหมือนกับ recurring rules ที่ views/recurring.view.js
+  // ดึงเอง เพราะไม่มีหน้าอื่นต้องรู้สถานะนี้. เชื่อมต่อผ่านฟอร์มวางลิงก์ .ics
+  // ธรรมดา (api.post) — ไม่ใช่ OAuth redirect เหมือน Microsoft Graph เดิม.
+  function connectionCellHTML(memberId, conn) {
+    if (state.connectingMemberId === memberId) {
+      return `
+      <form data-connect-ics-form class="flex items-center gap-1.5">
+        <input type="url" data-field="icsUrl" required placeholder="วางลิงก์ .ics ที่นี่" class="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 rounded-md text-xs px-2 py-1 w-48">
+        <button type="submit" class="text-xs px-2 py-1 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">บันทึก</button>
+        <button type="button" data-cancel-connect-ics class="text-xs text-slate-500 dark:text-slate-400 hover:underline">ยกเลิก</button>
+      </form>`;
+    }
+    if (!conn) {
+      return `<button type="button" data-start-connect-ics class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อปฏิทิน (iCal)</button>`;
+    }
+    if (conn.status === 'needs_reconnect') {
+      return `
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">ลิงก์ใช้ไม่ได้แล้ว</span>
+        <button type="button" data-start-connect-ics class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">เชื่อมต่อใหม่</button>
+      </div>`;
+    }
+    return `
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-slate-500 dark:text-slate-400">เชื่อมต่อแล้ว${conn.lastSyncedAt ? ` · ซิงก์ล่าสุด ${esc(conn.lastSyncedAt.slice(5, 16).replace('T', ' '))}` : ''}</span>
+      <button type="button" data-disconnect-ics class="text-xs text-rose-600 dark:text-rose-400 hover:underline">ยกเลิก</button>
+    </div>`;
   }
 
   function createRowHTML() {
@@ -95,7 +102,7 @@ export function mountMembers(root) {
       </td>
       <td>${createdCount}</td>
       <td>${pendingCount}</td>
-      <td class="px-4 py-2">${connectionBadgeHTML(m.id, connectionFor(m.id))}</td>
+      <td class="px-4 py-2">${connectionCellHTML(m.id, connectionFor(m.id))}</td>
       <td class="px-4 py-2 text-right whitespace-nowrap">
         <button type="button" data-edit-member class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline mr-3">แก้ไข</button>
         <button type="button" data-toggle-active class="text-xs text-amber-600 dark:text-amber-400 hover:underline mr-3">${m.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button>
@@ -114,7 +121,7 @@ export function mountMembers(root) {
       <table class="w-full text-sm">
         <thead>
           <tr class="text-left text-slate-500 dark:text-slate-400 text-xs border-b border-slate-100 dark:border-slate-700">
-            <th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th><th>ปฏิทิน Outlook</th><th></th>
+            <th class="px-4 py-2">สมาชิก</th><th>สร้างแล้ว</th><th>งานค้าง</th><th>ปฏิทิน (iCal)</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -171,8 +178,21 @@ export function mountMembers(root) {
     }
   }
 
-  async function handleDisconnectOutlook(memberId) {
-    if (!window.confirm('ยืนยันยกเลิกการเชื่อมต่อปฏิทิน Outlook?')) return;
+  async function handleConnectIcs(memberId, icsUrl) {
+    if (!icsUrl) return toast.show('กรุณาวางลิงก์ .ics');
+    try {
+      const connection = await api.post('/calendar/connections', { memberId, icsUrl });
+      state.connections = state.connections.filter((c) => c.memberId !== memberId).concat(connection);
+      state.connectingMemberId = null;
+      render();
+      toast.show('เชื่อมต่อปฏิทินแล้ว');
+    } catch (err) {
+      toast.show(`เชื่อมต่อไม่สำเร็จ: ${err.message}`);
+    }
+  }
+
+  async function handleDisconnectIcs(memberId) {
+    if (!window.confirm('ยืนยันยกเลิกการเชื่อมต่อปฏิทิน?')) return;
     try {
       await api.del(`/calendar/connections/${memberId}`);
       state.connections = state.connections.filter((c) => c.memberId !== memberId);
@@ -251,10 +271,33 @@ export function mountMembers(root) {
       });
     });
 
-    root.querySelectorAll('[data-disconnect-outlook]').forEach((btn) => {
+    root.querySelectorAll('[data-start-connect-ics]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.connectingMemberId = Number(btn.closest('[data-member-id]').dataset.memberId);
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-cancel-connect-ics]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.connectingMemberId = null;
+        render();
+      });
+    });
+
+    root.querySelectorAll('[data-connect-ics-form]').forEach((form) => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = Number(form.closest('[data-member-id]').dataset.memberId);
+        const icsUrl = form.querySelector('[data-field="icsUrl"]').value.trim();
+        handleConnectIcs(id, icsUrl);
+      });
+    });
+
+    root.querySelectorAll('[data-disconnect-ics]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = Number(btn.closest('[data-member-id]').dataset.memberId);
-        handleDisconnectOutlook(id);
+        handleDisconnectIcs(id);
       });
     });
   }
