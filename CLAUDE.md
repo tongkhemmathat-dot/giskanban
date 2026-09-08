@@ -146,3 +146,19 @@ docker compose up -d --build
 - ❌ เปลี่ยน SQLite เป็น Postgres โดยไม่ถาม
 - ❌ ลบไฟล์ใน `data/`
 - ❌ แก้ `docs/` โดยไม่บอก (ยกเว้นติ๊ก checkbox ใน roadmap)
+
+---
+
+## 10. Agent skills (mattpocock-skills)
+
+### Issue tracker
+
+GitHub Issues via the `gh` CLI (repo: tongkhemmathat-dot/giskanban). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five canonical labels (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
