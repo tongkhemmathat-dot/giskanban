@@ -1,11 +1,15 @@
 // api/index.js — Vercel serverless entrypoint (demo deploy ONLY).
 //
 // Vercel Functions have no persistent disk outside /tmp, and /tmp itself is
-// wiped on every cold start and NOT shared across concurrent instances — so
-// this re-seeds a fresh SQLite file into /tmp on each cold start instead of
-// trying to persist real data. Good enough to click around the UI live; not
-// a substitute for docs/09-deployment.md's Docker Compose setup, which is
-// what actually persists data for real use.
+// wiped on every cold start and NOT shared across concurrent instances. To
+// survive that, every mutating request snapshots the whole SQLite file to a
+// private Vercel Blob (jobcard-demo.db) before responding, and each cold
+// start restores from that snapshot before opening the DB. This is still not
+// safe under truly concurrent writes across simultaneously-warm instances
+// (last snapshot written wins) — fine for a low-traffic demo, not a
+// substitute for docs/09-deployment.md's Docker Compose setup, which is what
+// actually persists data for real use. Uploaded attachments are NOT snapshotted
+// (only the DB file) and will still vanish across cold starts.
 //
 // DB_PATH and UPLOAD_DIR must both be set *before* the modules that read them
 // are first imported — connection.js (DB_PATH) and attachment.service.js
@@ -19,21 +23,58 @@
 // code, so both of these (and anything that imports them) must be brought in
 // with dynamic `import()` here instead, after the env vars are set.
 import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { get, put } from '@vercel/blob';
 
 process.env.DB_PATH = process.env.DB_PATH || '/tmp/jobcard-demo.db';
 process.env.UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/jobcard-uploads';
 
-const isFirstBootThisInstance = !existsSync(process.env.DB_PATH);
+const DB_SNAPSHOT_PATHNAME = 'jobcard-demo.db';
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+// Best-effort restore: any failure (network blip, no store configured yet)
+// just falls back to a fresh seeded DB instead of crashing the cold start.
+async function restoreDbSnapshot() {
+  try {
+    const result = await get(DB_SNAPSHOT_PATHNAME, { access: 'private' });
+    if (!result) return false;
+    const chunks = [];
+    for await (const chunk of result.stream) chunks.push(chunk);
+    await writeFile(process.env.DB_PATH, Buffer.concat(chunks));
+    return true;
+  } catch (err) {
+    console.error('กู้คืน snapshot ฐานข้อมูลจาก Blob ไม่สำเร็จ:', err.message);
+    return false;
+  }
+}
+
+const restoredFromSnapshot = existsSync(process.env.DB_PATH) || (await restoreDbSnapshot());
 
 const { default: db } = await import('../server/db/connection.js');
+const { runMigrations } = await import('../server/db/migrate.js');
+runMigrations(db); // idempotent (docs/07 rule #5) — safe to re-run against a restored snapshot too
 
-if (isFirstBootThisInstance) {
-  const { runMigrations } = await import('../server/db/migrate.js');
+if (!restoredFromSnapshot) {
   const { seedDatabase } = await import('../server/db/seed.js');
-  runMigrations(db);
   seedDatabase(db);
 }
 
 const { default: app } = await import('../server/index.js');
+
+// Delay the response to any mutating request until the DB file is snapshotted
+// to Blob, so the instance is never allowed to freeze/recycle before the
+// write is durable. Read-only requests pass through untouched.
+app.use((req, res, next) => {
+  if (!MUTATING_METHODS.has(req.method)) return next();
+  const originalEnd = res.end.bind(res);
+  res.end = (...args) => {
+    if (res.statusCode >= 400) return originalEnd(...args);
+    readFile(process.env.DB_PATH)
+      .then((buf) => put(DB_SNAPSHOT_PATHNAME, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true }))
+      .catch((err) => console.error('บันทึก snapshot ฐานข้อมูลไป Blob ไม่สำเร็จ:', err.message))
+      .finally(() => originalEnd(...args));
+  };
+  next();
+});
 
 export default app;
