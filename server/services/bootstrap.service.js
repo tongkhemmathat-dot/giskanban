@@ -7,10 +7,15 @@ import { listMembers } from './member.service.js';
 import { listCards } from './card.service.js';
 import { listLabels } from './label.service.js';
 
-export function getBootstrap() {
-  const board = db.prepare('SELECT * FROM boards LIMIT 1').get();
-  const lists = db.prepare('SELECT * FROM lists ORDER BY position').all();
-  const templates = db.prepare('SELECT id, name, slug, items FROM templates ORDER BY id').all();
+export async function getBootstrap() {
+  const [board, lists, templates, members, labels, cards] = await Promise.all([
+    db.get('SELECT * FROM boards LIMIT 1', []),
+    db.all('SELECT * FROM lists ORDER BY position', []),
+    db.all('SELECT id, name, slug, items FROM templates ORDER BY id', []),
+    listMembers(),
+    listLabels(),
+    listCards(),
+  ]);
 
   return {
     board: board ? { id: board.id, name: board.name } : null,
@@ -21,14 +26,14 @@ export function getBootstrap() {
       wipLimit: l.wip_limit,
       isDone: l.is_done,
     })),
-    members: listMembers(),
-    labels: listLabels(),
+    members,
+    labels,
     templates: templates.map((t) => ({
       id: t.id,
       name: t.name,
       slug: t.slug,
       itemCount: JSON.parse(t.items).length,
     })),
-    cards: listCards(),
+    cards,
   };
 }

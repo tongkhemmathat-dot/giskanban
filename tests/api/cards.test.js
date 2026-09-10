@@ -159,7 +159,7 @@ describe('Cards API', () => {
     expect(intoWaiting.body.slaDueAt).toBe(originalSlaDueAt); // due date itself untouched while paused
 
     // Backdate sla_paused_at by 2h to simulate time spent waiting, without a real sleep.
-    getDb().prepare("UPDATE cards SET sla_paused_at = datetime(sla_paused_at, '-2 hours') WHERE id = ?").run(cardId);
+    await getDb().run("UPDATE cards SET sla_paused_at = datetime(sla_paused_at, '-2 hours') WHERE id = ?", [cardId]);
 
     const outOfWaiting = await request(app).patch(`/api/cards/${cardId}/move`).send({ listId: TODO_LIST_ID, position: 65536 });
     expect(outOfWaiting.status).toBe(200);
@@ -175,12 +175,13 @@ describe('Cards API', () => {
     const cardId = created.body.id;
 
     // Backdate updated_at to simulate a card that's been sitting untouched for a while.
-    getDb().prepare("UPDATE cards SET updated_at = datetime('now', '-10 days') WHERE id = ?").run(cardId);
+    await getDb().run("UPDATE cards SET updated_at = datetime('now', '-10 days') WHERE id = ?", [cardId]);
 
     await request(app).post(`/api/cards/${cardId}/comments`).send({ authorName: 'สมชาย ก.', body: 'อัปเดตความคืบหน้า' });
 
     const fetched = await request(app).get(`/api/cards/${cardId}`);
-    const staleUpdatedAtMs = new Date(getDb().prepare('SELECT updated_at FROM cards WHERE id = ?').get(cardId).updated_at.replace(' ', 'T') + 'Z').getTime();
+    const staleRow = await getDb().get('SELECT updated_at FROM cards WHERE id = ?', [cardId]);
+    const staleUpdatedAtMs = new Date(staleRow.updated_at.replace(' ', 'T') + 'Z').getTime();
     expect(new Date(fetched.body.lastActivityAt).getTime()).toBeGreaterThan(staleUpdatedAtMs);
   });
 
@@ -194,7 +195,7 @@ describe('Cards API', () => {
     const del = await request(app).delete(`/api/cards/${cardId}`);
     expect(del.status).toBe(204);
 
-    const remaining = getDb().prepare('SELECT COUNT(*) AS n FROM subtasks WHERE card_id = ?').get(cardId);
+    const remaining = await getDb().get('SELECT COUNT(*) AS n FROM subtasks WHERE card_id = ?', [cardId]);
     expect(remaining.n).toBe(0);
 
     const getAfter = await request(app).get(`/api/cards/${cardId}`);
@@ -265,7 +266,7 @@ describe('Cards API', () => {
   });
 
   it('attaches labelIds when creating a card', async () => {
-    const label = getDb().prepare('INSERT INTO labels (board_id, name, color) VALUES (1, ?, ?)').run('Network', '#0ea5e9');
+    const label = await getDb().run('INSERT INTO labels (board_id, name, color) VALUES (1, ?, ?)', ['Network', '#0ea5e9']);
     const labelId = Number(label.lastInsertRowid);
 
     const res = await request(app)

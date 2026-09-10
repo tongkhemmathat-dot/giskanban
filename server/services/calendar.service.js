@@ -2,11 +2,10 @@
 // backlog): แต่ละสมาชิกวางลิงก์ .ics ที่ Outlook ของตัวเอง publish ไว้
 // (Settings → Calendar → Shared calendars → Publish a calendar) — ไม่ต้องทำ
 // OAuth/Azure AD app registration เลย. ระบบ poll ดึงลิงก์นั้นเป็นรอบแล้ว
-// parse ด้วย server/utils/ics.js แคชผลไว้ให้หน้าเว็บอ่านแบบ sync เสมอ.
+// parse ด้วย server/utils/ics.js แคชผลไว้ให้หน้าเว็บอ่าน.
 //
 // การ sync แยกเป็นสองขั้นตอนเสมอ: (1) เรียก fetch แบบ async นอก transaction
-// ใดๆ แล้ว (2) เขียนผลลงตารางด้วย db.transaction() แบบ sync สั้นๆ — เพราะ
-// better-sqlite3 transaction ต้องเป็น synchronous function.
+// ใดๆ แล้ว (2) เขียนผลลงตารางด้วย db.transaction() สั้นๆ.
 import db from '../db/connection.js';
 import { AppError } from '../utils/AppError.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
@@ -33,14 +32,14 @@ async function fetchIcs(icsUrl) {
 
 // --- Connection storage --------------------------------------------------
 
-function upsertConnectionTxn(memberId, icsUrl) {
+async function upsertConnectionTxn(memberId, icsUrl) {
   const icsUrlEnc = encrypt(icsUrl);
-  const existing = db.prepare('SELECT id FROM calendar_connections WHERE member_id = ?').get(memberId);
+  const existing = await db.get('SELECT id FROM calendar_connections WHERE member_id = ?', [memberId]);
   if (existing) {
-    db.prepare("UPDATE calendar_connections SET ics_url_enc = ?, status = 'active', last_sync_error = NULL WHERE id = ?").run(icsUrlEnc, existing.id);
+    await db.run("UPDATE calendar_connections SET ics_url_enc = ?, status = 'active', last_sync_error = NULL WHERE id = ?", [icsUrlEnc, existing.id]);
     return existing.id;
   }
-  const info = db.prepare('INSERT INTO calendar_connections (member_id, ics_url_enc) VALUES (?, ?)').run(memberId, icsUrlEnc);
+  const info = await db.run('INSERT INTO calendar_connections (member_id, ics_url_enc) VALUES (?, ?)', [memberId, icsUrlEnc]);
   return Number(info.lastInsertRowid);
 }
 
@@ -49,7 +48,7 @@ function upsertConnectionTxn(memberId, icsUrl) {
 // member sees their events right away instead of waiting for the next poll
 // tick (server/index.js's CALENDAR_POLL_MINUTES interval).
 export async function addConnection(memberId, icsUrl) {
-  const member = db.prepare('SELECT id FROM members WHERE id = ?').get(memberId);
+  const member = await db.get('SELECT id FROM members WHERE id = ?', [memberId]);
   if (!member) throw new AppError('NOT_FOUND', 'ไม่พบสมาชิกนี้', 404);
 
   let icsText;
@@ -60,28 +59,27 @@ export async function addConnection(memberId, icsUrl) {
   }
   parseIcsEvents(icsText, eventsWindow()); // throws AppError('INVALID_ICS', ...) if it isn't really an .ics file
 
-  const connectionId = db.transaction(upsertConnectionTxn)(memberId, icsUrl);
+  const connectionId = await db.transaction(upsertConnectionTxn)(memberId, icsUrl);
   pollOneConnection(connectionId).catch((err) => {
     console.error('ซิงก์ปฏิทินหลังเชื่อมต่อไม่สำเร็จ:', err.message);
   });
   return getConnectionStatus(memberId);
 }
 
-export function disconnectMember(memberId) {
-  const existing = db.prepare('SELECT id FROM calendar_connections WHERE member_id = ?').get(memberId);
+export async function disconnectMember(memberId) {
+  const existing = await db.get('SELECT id FROM calendar_connections WHERE member_id = ?', [memberId]);
   if (!existing) throw new AppError('NOT_FOUND', 'ยังไม่มีการเชื่อมต่อปฏิทินของสมาชิกนี้', 404);
-  db.prepare('DELETE FROM calendar_connections WHERE member_id = ?').run(memberId); // cascades calendar_events
+  await db.run('DELETE FROM calendar_connections WHERE member_id = ?', [memberId]); // cascades calendar_events
 }
 
-function getConnectionStatus(memberId) {
-  const row = db
-    .prepare(
-      `SELECT cc.*, m.name AS member_name, m.color AS member_color
-       FROM calendar_connections cc
-       JOIN members m ON m.id = cc.member_id
-       WHERE cc.member_id = ?`,
-    )
-    .get(memberId);
+async function getConnectionStatus(memberId) {
+  const row = await db.get(
+    `SELECT cc.*, m.name AS member_name, m.color AS member_color
+     FROM calendar_connections cc
+     JOIN members m ON m.id = cc.member_id
+     WHERE cc.member_id = ?`,
+    [memberId],
+  );
   return row ? toStatusApi(row) : null;
 }
 
@@ -99,15 +97,14 @@ function toStatusApi(row) {
 // For the Members page and calendar.view.js's filter chips — one row per
 // connected member, never includes the .ics link itself (it's a bearer
 // secret — anyone with it can read that member's calendar).
-export function listConnectionStatuses() {
-  const rows = db
-    .prepare(
-      `SELECT cc.*, m.name AS member_name, m.color AS member_color
-       FROM calendar_connections cc
-       JOIN members m ON m.id = cc.member_id
-       ORDER BY m.name`,
-    )
-    .all();
+export async function listConnectionStatuses() {
+  const rows = await db.all(
+    `SELECT cc.*, m.name AS member_name, m.color AS member_color
+     FROM calendar_connections cc
+     JOIN members m ON m.id = cc.member_id
+     ORDER BY m.name`,
+    [],
+  );
   return rows.map(toStatusApi);
 }
 
@@ -123,9 +120,9 @@ async function syncConnection(connection) {
     // link — that needs them to reconnect. Anything else (timeout, 5xx from
     // Outlook) is treated as transient: keep polling, don't force a reconnect.
     if (err.status === 404 || err.status === 403) {
-      db.prepare("UPDATE calendar_connections SET status = 'needs_reconnect', last_sync_error = ? WHERE id = ?").run(err.message, connection.id);
+      await db.run("UPDATE calendar_connections SET status = 'needs_reconnect', last_sync_error = ? WHERE id = ?", [err.message, connection.id]);
     } else {
-      db.prepare('UPDATE calendar_connections SET last_sync_error = ? WHERE id = ?').run(err.message, connection.id);
+      await db.run('UPDATE calendar_connections SET last_sync_error = ? WHERE id = ?', [err.message, connection.id]);
       throw err;
     }
     return;
@@ -135,25 +132,25 @@ async function syncConnection(connection) {
   try {
     events = parseIcsEvents(icsText, eventsWindow());
   } catch (err) {
-    db.prepare("UPDATE calendar_connections SET status = 'needs_reconnect', last_sync_error = ? WHERE id = ?").run(err.message, connection.id);
+    await db.run("UPDATE calendar_connections SET status = 'needs_reconnect', last_sync_error = ? WHERE id = ?", [err.message, connection.id]);
     return;
   }
 
-  db.transaction(() => {
-    db.prepare('DELETE FROM calendar_events WHERE connection_id = ?').run(connection.id);
-    const insert = db.prepare(
-      `INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at, is_all_day, location)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
+  await db.transaction(async () => {
+    await db.run('DELETE FROM calendar_events WHERE connection_id = ?', [connection.id]);
     for (const ev of events) {
-      insert.run(connection.id, connection.member_id, ev.uid, ev.subject, ev.startAt, ev.endAt, ev.isAllDay ? 1 : 0, ev.location);
+      await db.run(
+        `INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at, is_all_day, location)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [connection.id, connection.member_id, ev.uid, ev.subject, ev.startAt, ev.endAt, ev.isAllDay ? 1 : 0, ev.location],
+      );
     }
-    db.prepare("UPDATE calendar_connections SET last_synced_at = ?, last_sync_error = NULL WHERE id = ?").run(nowSqlite(), connection.id);
+    await db.run("UPDATE calendar_connections SET last_synced_at = ?, last_sync_error = NULL WHERE id = ?", [nowSqlite(), connection.id]);
   })();
 }
 
 export async function pollOneConnection(connectionId) {
-  const connection = db.prepare('SELECT * FROM calendar_connections WHERE id = ?').get(connectionId);
+  const connection = await db.get('SELECT * FROM calendar_connections WHERE id = ?', [connectionId]);
   if (!connection) return;
   await syncConnection(connection);
 }
@@ -163,7 +160,7 @@ export async function pollOneConnection(connectionId) {
 // one slow/stuck feed doesn't pile up concurrent requests; one connection's
 // failure never stops the rest from syncing.
 export async function pollAllConnections() {
-  const connections = db.prepare("SELECT * FROM calendar_connections WHERE status = 'active' ORDER BY id").all();
+  const connections = await db.all("SELECT * FROM calendar_connections WHERE status = 'active' ORDER BY id", []);
   let synced = 0;
   let failed = 0;
   for (const connection of connections) {
@@ -180,18 +177,17 @@ export async function pollAllConnections() {
 
 // --- Merged read for the frontend -------------------------------------
 
-// Pure sync SQL read (never fetches the .ics feed live) — the calendar page
+// Pure SQL read (never fetches the .ics feed live) — the calendar page
 // always reads the cache so it's never blocked on a slow/unreachable feed.
-export function getMergedEvents(startDate, endDate) {
-  const rows = db
-    .prepare(
-      `SELECT ce.*, m.name AS member_name, m.color AS member_color
-       FROM calendar_events ce
-       JOIN members m ON m.id = ce.member_id
-       WHERE ce.start_at < ? AND ce.end_at > ?
-       ORDER BY ce.start_at`,
-    )
-    .all(`${endDate} 23:59:59`, `${startDate} 00:00:00`);
+export async function getMergedEvents(startDate, endDate) {
+  const rows = await db.all(
+    `SELECT ce.*, m.name AS member_name, m.color AS member_color
+     FROM calendar_events ce
+     JOIN members m ON m.id = ce.member_id
+     WHERE ce.start_at < ? AND ce.end_at > ?
+     ORDER BY ce.start_at`,
+    [`${endDate} 23:59:59`, `${startDate} 00:00:00`],
+  );
 
   return rows.map((row) => ({
     memberId: row.member_id,

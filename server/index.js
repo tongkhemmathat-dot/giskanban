@@ -33,10 +33,10 @@ export const app = express();
 
 app.use(express.json());
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   let dbConnected = true;
   try {
-    db.prepare('SELECT 1').get();
+    await db.get('SELECT 1', []);
   } catch {
     dbConnected = false;
   }
@@ -112,12 +112,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // runDueRecurring(). Same "only meaningful under a persistent process"
   // caveat: no-op under a stateless serverless deploy.
   setInterval(() => {
-    try {
-      const created = runDueRecurring();
-      if (created.length) console.warn(`สร้างใบงานประจำอัตโนมัติ ${created.length} ใบ`);
-    } catch (err) {
-      console.error('สร้างใบงานประจำไม่สำเร็จ:', err);
-    }
+    runDueRecurring()
+      .then((created) => {
+        if (created.length) console.warn(`สร้างใบงานประจำอัตโนมัติ ${created.length} ใบ`);
+      })
+      .catch((err) => console.error('สร้างใบงานประจำไม่สำเร็จ:', err));
   }, 5 * 60_000);
 
   // ปฏิทินรวมของทีม (Outlook/M365 sync via Microsoft Graph, docs/07-roadmap.md

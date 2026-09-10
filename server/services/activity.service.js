@@ -17,22 +17,23 @@ import { toApiDateTime } from '../utils/date.js';
  * - action:    one of the action strings in docs/05-business-rules.md §8.
  * - meta:      plain object, JSON-serialized into meta_json. Optional.
  */
-export function logActivity({ cardId = null, actorName = null, action, meta = null }) {
-  db.prepare(
-    'INSERT INTO activities (card_id, actor_name, action, meta_json) VALUES (?, ?, ?, ?)',
-  ).run(cardId, actorName, action, meta == null ? null : JSON.stringify(meta));
+export async function logActivity({ cardId = null, actorName = null, action, meta = null }) {
+  await db.run('INSERT INTO activities (card_id, actor_name, action, meta_json) VALUES (?, ?, ?, ?)', [
+    cardId,
+    actorName,
+    action,
+    meta == null ? null : JSON.stringify(meta),
+  ]);
 }
 
 /** Full activity timeline for one card, newest first — used by card.service.js's GET :id. */
-export function listActivities(cardId) {
-  return db
-    .prepare('SELECT * FROM activities WHERE card_id = ? ORDER BY created_at DESC, id DESC')
-    .all(cardId)
-    .map((row) => ({
-      id: row.id,
-      actorName: row.actor_name,
-      action: row.action,
-      meta: row.meta_json ? JSON.parse(row.meta_json) : null,
-      createdAt: toApiDateTime(row.created_at),
-    }));
+export async function listActivities(cardId) {
+  const rows = await db.all('SELECT * FROM activities WHERE card_id = ? ORDER BY created_at DESC, id DESC', [cardId]);
+  return rows.map((row) => ({
+    id: row.id,
+    actorName: row.actor_name,
+    action: row.action,
+    meta: row.meta_json ? JSON.parse(row.meta_json) : null,
+    createdAt: toApiDateTime(row.created_at),
+  }));
 }

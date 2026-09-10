@@ -8,18 +8,17 @@ import { computeSlaStatus } from '../utils/sla.js';
 import { mondayOf, isoWeekNumber } from '../utils/week.js';
 import { listCards } from './card.service.js';
 
-function cardSlaRows() {
-  return db
-    .prepare(
-      `SELECT c.id, c.priority, c.sla_due_at, c.created_at, c.completed_at, c.creator_id,
-              l.id AS list_id, l.slug, l.is_done, l.pauses_sla
-       FROM cards c JOIN lists l ON l.id = c.list_id`,
-    )
-    .all();
+async function cardSlaRows() {
+  return db.all(
+    `SELECT c.id, c.priority, c.sla_due_at, c.created_at, c.completed_at, c.creator_id,
+            l.id AS list_id, l.slug, l.is_done, l.pauses_sla
+     FROM cards c JOIN lists l ON l.id = c.list_id`,
+    [],
+  );
 }
 
-export function getSummary() {
-  const rows = cardSlaRows();
+export async function getSummary() {
+  const rows = await cardSlaRows();
   const statuses = rows.map((r) => computeSlaStatus({ priority: r.priority, slaDueAt: r.sla_due_at, isDone: !!r.is_done, isPaused: !!r.pauses_sla }));
 
   const open = rows.filter((r) => !r.is_done).length;
@@ -29,24 +28,20 @@ export function getSummary() {
 
   // Rolling 7 days, not calendar week — docs/04-api.md §9 doesn't specify a
   // boundary, and a rolling window is simplest to reason about/test.
-  const doneThisWeek = db
-    .prepare(`SELECT COUNT(*) AS n FROM cards WHERE completed_at >= datetime('now', '-7 days')`)
-    .get().n;
+  const doneThisWeek = (await db.get(`SELECT COUNT(*) AS n FROM cards WHERE completed_at >= datetime('now', '-7 days')`, [])).n;
 
-  const avgRow = db
-    .prepare(`SELECT AVG((julianday(completed_at) - julianday(created_at)) * 24) AS avg FROM cards WHERE completed_at IS NOT NULL`)
-    .get();
+  const avgRow = await db.get(`SELECT AVG((julianday(completed_at) - julianday(created_at)) * 24) AS avg FROM cards WHERE completed_at IS NOT NULL`, []);
   const avgCloseHours = avgRow.avg == null ? 0 : Math.round(avgRow.avg * 10) / 10;
 
   return { open, doing, overdue, atRisk, doneThisWeek, avgCloseHours };
 }
 
-export function getWorkload() {
-  const members = db.prepare('SELECT id, name FROM members ORDER BY name').all();
-  const rows = cardSlaRows();
+export async function getWorkload() {
+  const members = await db.all('SELECT id, name FROM members ORDER BY name', []);
+  const rows = await cardSlaRows();
 
   const assigneesByCard = new Map();
-  for (const row of db.prepare('SELECT card_id, member_id FROM card_assignees').all()) {
+  for (const row of await db.all('SELECT card_id, member_id FROM card_assignees', [])) {
     if (!assigneesByCard.has(row.card_id)) assigneesByCard.set(row.card_id, new Set());
     assigneesByCard.get(row.card_id).add(row.member_id);
   }
@@ -62,11 +57,12 @@ export function getWorkload() {
   });
 }
 
-export function getOverdueCards() {
-  return listCards().filter((c) => c.slaStatus === 'overdue' || c.slaStatus === 'at_risk');
+export async function getOverdueCards() {
+  const cards = await listCards();
+  return cards.filter((c) => c.slaStatus === 'overdue' || c.slaStatus === 'at_risk');
 }
 
-export function getThroughput(weeks = 8) {
+export async function getThroughput(weeks = 8) {
   const currentMonday = mondayOf(new Date());
   const result = [];
 
@@ -78,10 +74,8 @@ export function getThroughput(weeks = 8) {
     const start = monday.toISOString().slice(0, 10);
     const end = sunday.toISOString().slice(0, 10);
 
-    const opened = db.prepare(`SELECT COUNT(*) AS n FROM cards WHERE date(created_at) BETWEEN ? AND ?`).get(start, end).n;
-    const closed = db
-      .prepare(`SELECT COUNT(*) AS n FROM cards WHERE completed_at IS NOT NULL AND date(completed_at) BETWEEN ? AND ?`)
-      .get(start, end).n;
+    const opened = (await db.get(`SELECT COUNT(*) AS n FROM cards WHERE date(created_at) BETWEEN ? AND ?`, [start, end])).n;
+    const closed = (await db.get(`SELECT COUNT(*) AS n FROM cards WHERE completed_at IS NOT NULL AND date(completed_at) BETWEEN ? AND ?`, [start, end])).n;
 
     result.push({ week: `W${String(isoWeekNumber(monday)).padStart(2, '0')}`, opened, closed });
   }
@@ -89,13 +83,12 @@ export function getThroughput(weeks = 8) {
   return result;
 }
 
-export function getByCreator() {
+export async function getByCreator() {
   // Same query as docs/03-database.md §5's reference example.
-  return db
-    .prepare(
-      `SELECT m.name AS name, COUNT(c.id) AS count
-       FROM members m LEFT JOIN cards c ON c.creator_id = m.id
-       GROUP BY m.id ORDER BY count DESC, m.name`,
-    )
-    .all();
+  return db.all(
+    `SELECT m.name AS name, COUNT(c.id) AS count
+     FROM members m LEFT JOIN cards c ON c.creator_id = m.id
+     GROUP BY m.id ORDER BY count DESC, m.name`,
+    [],
+  );
 }

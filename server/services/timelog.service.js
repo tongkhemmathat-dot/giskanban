@@ -22,33 +22,29 @@ function mapTimeLogRow(row) {
   };
 }
 
-export function listTimeLogs(cardId) {
-  return db
-    .prepare(`${TIME_LOG_SELECT} WHERE t.card_id = ? ORDER BY t.logged_at`)
-    .all(cardId)
-    .map(mapTimeLogRow);
+export async function listTimeLogs(cardId) {
+  const rows = await db.all(`${TIME_LOG_SELECT} WHERE t.card_id = ? ORDER BY t.logged_at`, [cardId]);
+  return rows.map(mapTimeLogRow);
 }
 
-function createTimeLogTxn(cardId, { memberName, hours, note }) {
-  const card = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardId);
+async function createTimeLogTxn(cardId, { memberName, hours, note }) {
+  const card = await db.get('SELECT id FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
 
-  const member = findOrCreateMemberByName(memberName);
-  const info = db
-    .prepare('INSERT INTO time_logs (card_id, member_id, hours, note) VALUES (?, ?, ?, ?)')
-    .run(cardId, member.id, hours, note ?? null);
+  const member = await findOrCreateMemberByName(memberName);
+  const info = await db.run('INSERT INTO time_logs (card_id, member_id, hours, note) VALUES (?, ?, ?, ?)', [cardId, member.id, hours, note ?? null]);
 
-  logActivity({ cardId, actorName: memberName, action: 'time_logged', meta: { hours } });
+  await logActivity({ cardId, actorName: memberName, action: 'time_logged', meta: { hours } });
 
-  return mapTimeLogRow(db.prepare(`${TIME_LOG_SELECT} WHERE t.id = ?`).get(info.lastInsertRowid));
+  return mapTimeLogRow(await db.get(`${TIME_LOG_SELECT} WHERE t.id = ?`, [info.lastInsertRowid]));
 }
 
 export function createTimeLog(cardId, fields) {
   return db.transaction(createTimeLogTxn)(cardId, fields);
 }
 
-export function deleteTimeLog(tid) {
-  const existing = db.prepare('SELECT id FROM time_logs WHERE id = ?').get(tid);
+export async function deleteTimeLog(tid) {
+  const existing = await db.get('SELECT id FROM time_logs WHERE id = ?', [tid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบรายการบันทึกเวลานี้', 404);
-  db.prepare('DELETE FROM time_logs WHERE id = ?').run(tid);
+  await db.run('DELETE FROM time_logs WHERE id = ?', [tid]);
 }

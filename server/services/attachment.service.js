@@ -57,28 +57,31 @@ function mapAttachmentRow(row) {
   };
 }
 
-export function listAttachments(cardId) {
-  return db
-    .prepare(`${ATTACHMENT_SELECT} WHERE a.card_id = ? ORDER BY a.created_at`)
-    .all(cardId)
-    .map(mapAttachmentRow);
+export async function listAttachments(cardId) {
+  const rows = await db.all(`${ATTACHMENT_SELECT} WHERE a.card_id = ? ORDER BY a.created_at`, [cardId]);
+  return rows.map(mapAttachmentRow);
 }
 
 // `file` is multer's req.file — already written to UPLOAD_DIR by the time
 // this runs (multer streams it to disk during multipart parsing, before the
 // route handler executes).
-function createAttachmentTxn(cardId, file, uploaderName) {
-  const card = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardId);
+async function createAttachmentTxn(cardId, file, uploaderName) {
+  const card = await db.get('SELECT id FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
 
-  const uploader = findOrCreateMemberByName(uploaderName);
-  const info = db
-    .prepare('INSERT INTO attachments (card_id, filename, stored_name, mime_type, size, uploader_id) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(cardId, file.originalname, file.filename, file.mimetype, file.size, uploader.id);
+  const uploader = await findOrCreateMemberByName(uploaderName);
+  const info = await db.run('INSERT INTO attachments (card_id, filename, stored_name, mime_type, size, uploader_id) VALUES (?, ?, ?, ?, ?, ?)', [
+    cardId,
+    file.originalname,
+    file.filename,
+    file.mimetype,
+    file.size,
+    uploader.id,
+  ]);
 
-  logActivity({ cardId, actorName: uploaderName, action: 'attachment_added', meta: { filename: file.originalname } });
+  await logActivity({ cardId, actorName: uploaderName, action: 'attachment_added', meta: { filename: file.originalname } });
 
-  return mapAttachmentRow(db.prepare(`${ATTACHMENT_SELECT} WHERE a.id = ?`).get(info.lastInsertRowid));
+  return mapAttachmentRow(await db.get(`${ATTACHMENT_SELECT} WHERE a.id = ?`, [info.lastInsertRowid]));
 }
 
 export function createAttachment(cardId, file, uploaderName) {
@@ -87,17 +90,17 @@ export function createAttachment(cardId, file, uploaderName) {
 
 // Route-only: the API shape (mapAttachmentRow) never exposes stored_name, so
 // the download route needs this instead to build the on-disk path.
-export function getDownloadInfo(aid) {
-  const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(aid);
+export async function getDownloadInfo(aid) {
+  const row = await db.get('SELECT * FROM attachments WHERE id = ?', [aid]);
   if (!row) throw new AppError('NOT_FOUND', 'ไม่พบไฟล์แนบนี้', 404);
   return { path: join(UPLOAD_DIR, row.stored_name), filename: row.filename };
 }
 
-export function deleteAttachment(aid) {
-  const existing = db.prepare('SELECT * FROM attachments WHERE id = ?').get(aid);
+export async function deleteAttachment(aid) {
+  const existing = await db.get('SELECT * FROM attachments WHERE id = ?', [aid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบไฟล์แนบนี้', 404);
 
-  db.prepare('DELETE FROM attachments WHERE id = ?').run(aid);
+  await db.run('DELETE FROM attachments WHERE id = ?', [aid]);
 
   try {
     unlinkSync(join(UPLOAD_DIR, existing.stored_name));

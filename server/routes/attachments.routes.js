@@ -9,6 +9,7 @@
 // empty body if it ran first.
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { uploadAttachmentSchema } from '../schemas/attachment.schema.js';
 import { idParamSchema, aidParamSchema } from '../schemas/common.schema.js';
 import { AppError } from '../utils/AppError.js';
@@ -21,22 +22,22 @@ r.post(
   validate(idParamSchema, 'params'),
   svc.upload.single('file'),
   validate(uploadAttachmentSchema),
-  (req, res) => {
+  asyncHandler(async (req, res) => {
     // multer leaves req.file undefined if the 'file' field was simply never
     // sent (as opposed to rejected by fileFilter/limits, which throw earlier).
     if (!req.file) throw new AppError('VALIDATION_ERROR', 'ต้องแนบไฟล์', 400, [{ path: 'file', message: 'ต้องแนบไฟล์' }]);
-    res.status(201).json(svc.createAttachment(req.params.id, req.file, req.body.uploaderName));
-  },
+    res.status(201).json(await svc.createAttachment(req.params.id, req.file, req.body.uploaderName));
+  }),
 );
 
-r.get('/attachments/:aid/download', validate(aidParamSchema, 'params'), (req, res) => {
-  const { path, filename } = svc.getDownloadInfo(req.params.aid);
+r.get('/attachments/:aid/download', validate(aidParamSchema, 'params'), asyncHandler(async (req, res) => {
+  const { path, filename } = await svc.getDownloadInfo(req.params.aid);
   res.download(path, filename);
-});
+}));
 
-r.delete('/attachments/:aid', validate(aidParamSchema, 'params'), (req, res) => {
-  svc.deleteAttachment(req.params.aid);
+r.delete('/attachments/:aid', validate(aidParamSchema, 'params'), asyncHandler(async (req, res) => {
+  await svc.deleteAttachment(req.params.aid);
   res.status(204).end();
-});
+}));
 
 export default r;

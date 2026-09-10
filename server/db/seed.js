@@ -88,122 +88,102 @@ function hoursAgo(hours) {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 }
 
-function insertMembers(db) {
-  const stmt = db.prepare(
-    'INSERT INTO members (name, short, color) VALUES (@name, @short, @color)',
-  );
+async function insertMembers(db) {
   const byName = {};
   for (const m of MEMBERS) {
-    const info = stmt.run(m);
+    const info = await db.run('INSERT INTO members (name, short, color) VALUES (?, ?, ?)', [m.name, m.short, m.color]);
     byName[m.name] = Number(info.lastInsertRowid);
   }
   return byName;
 }
 
-function insertBoardAndLists(db) {
+async function insertBoardAndLists(db) {
   const boardName = process.env.BOARD_NAME || 'NOC Operations';
-  const boardId = Number(
-    db.prepare('INSERT INTO boards (name) VALUES (?)').run(boardName).lastInsertRowid,
-  );
-  const stmt = db.prepare(`
-    INSERT INTO lists (board_id, name, slug, position, wip_limit, is_done, pauses_sla)
-    VALUES (@board_id, @name, @slug, @position, @wip_limit, @is_done, @pauses_sla)
-  `);
+  const boardInfo = await db.run('INSERT INTO boards (name) VALUES (?)', [boardName]);
+  const boardId = Number(boardInfo.lastInsertRowid);
   const bySlug = {};
   for (const l of LISTS) {
-    const info = stmt.run({ board_id: boardId, pauses_sla: 0, ...l }); // only 'waiting' overrides this (docs/05-business-rules.md §2)
+    const pausesSla = l.pauses_sla ?? 0; // only 'waiting' overrides this (docs/05-business-rules.md §2)
+    const info = await db.run('INSERT INTO lists (board_id, name, slug, position, wip_limit, is_done, pauses_sla) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+      boardId,
+      l.name,
+      l.slug,
+      l.position,
+      l.wip_limit,
+      l.is_done,
+      pausesSla,
+    ]);
     bySlug[l.slug] = Number(info.lastInsertRowid);
   }
   return { boardId, lists: bySlug };
 }
 
-function insertTemplates(db) {
-  const stmt = db.prepare(
-    'INSERT INTO templates (name, slug, items) VALUES (@name, @slug, @items)',
-  );
+async function insertTemplates(db) {
   const bySlug = {};
   for (const [slug, t] of Object.entries(TEMPLATES)) {
-    const info = stmt.run({ name: t.name, slug, items: JSON.stringify(t.items) });
+    const info = await db.run('INSERT INTO templates (name, slug, items) VALUES (?, ?, ?)', [t.name, slug, JSON.stringify(t.items)]);
     bySlug[slug] = Number(info.lastInsertRowid);
   }
   return bySlug;
 }
 
-function insertSubtasks(
-  db,
-  cardId,
-  titles,
-  { doneCount = 0, assigneeId = null, doneBy = null } = {},
-) {
-  const stmt = db.prepare(`
-    INSERT INTO subtasks (card_id, title, is_done, position, assignee_id, done_by, done_at)
-    VALUES (@card_id, @title, @is_done, @position, @assignee_id, @done_by, @done_at)
-  `);
-  titles.forEach((title, i) => {
+async function insertSubtasks(db, cardId, titles, { doneCount = 0, assigneeId = null, doneBy = null } = {}) {
+  for (let i = 0; i < titles.length; i++) {
     const isDone = i < doneCount ? 1 : 0;
-    stmt.run({
-      card_id: cardId,
-      title,
-      is_done: isDone,
-      position: (i + 1) * GAP,
-      assignee_id: assigneeId,
-      done_by: isDone ? doneBy : null,
-      done_at: isDone ? hoursAgo(1) : null,
-    });
-  });
+    await db.run(
+      `INSERT INTO subtasks (card_id, title, is_done, position, assignee_id, done_by, done_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [cardId, titles[i], isDone, (i + 1) * GAP, assigneeId, isDone ? doneBy : null, isDone ? hoursAgo(1) : null],
+    );
+  }
 }
 
-function insertCard(db, listId, position, fields) {
+async function insertCard(db, listId, position, fields) {
   const createdAt = fields.createdAt ?? hoursAgo(0);
   const slaDueAt = calcSlaDueAt(fields.priority, createdAt);
-  const stmt = db.prepare(`
-    INSERT INTO cards (
+  const info = await db.run(
+    `INSERT INTO cards (
       list_id, code, title, description, position, type, priority,
       due_date, sla_due_at, estimated_hours, site, customer, device_ref,
       project_code, creator_id, started_at, completed_at, created_at, updated_at
-    ) VALUES (
-      @list_id, @code, @title, @description, @position, @type, @priority,
-      @due_date, @sla_due_at, @estimated_hours, @site, @customer, @device_ref,
-      @project_code, @creator_id, @started_at, @completed_at, @created_at, @created_at
-    )
-  `);
-  const info = stmt.run({
-    list_id: listId,
-    code: fields.code,
-    title: fields.title,
-    description: fields.description ?? null,
-    position,
-    type: fields.type,
-    priority: fields.priority,
-    due_date: fields.dueDate ?? null,
-    sla_due_at: slaDueAt,
-    estimated_hours: fields.estimatedHours ?? null,
-    site: fields.site ?? null,
-    customer: fields.customer ?? null,
-    device_ref: fields.deviceRef ?? null,
-    project_code: fields.projectCode ?? null,
-    creator_id: fields.creatorId,
-    started_at: fields.startedAt ?? null,
-    completed_at: fields.completedAt ?? null,
-    created_at: createdAt,
-  });
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      listId,
+      fields.code,
+      fields.title,
+      fields.description ?? null,
+      position,
+      fields.type,
+      fields.priority,
+      fields.dueDate ?? null,
+      slaDueAt,
+      fields.estimatedHours ?? null,
+      fields.site ?? null,
+      fields.customer ?? null,
+      fields.deviceRef ?? null,
+      fields.projectCode ?? null,
+      fields.creatorId,
+      fields.startedAt ?? null,
+      fields.completedAt ?? null,
+      createdAt,
+      createdAt,
+    ],
+  );
   const cardId = Number(info.lastInsertRowid);
   const assigneeIds = fields.assigneeIds ?? [fields.creatorId];
-  const assignStmt = db.prepare('INSERT INTO card_assignees (card_id, member_id) VALUES (?, ?)');
   for (const memberId of assigneeIds) {
-    assignStmt.run(cardId, memberId);
+    await db.run('INSERT INTO card_assignees (card_id, member_id) VALUES (?, ?)', [cardId, memberId]);
   }
   return cardId;
 }
 
-function insertCards(db, { members, lists }) {
+async function insertCards(db, { members, lists }) {
   const m = members;
   let code = 0;
   const nextCode = () => 'JC-' + String(++code).padStart(6, '0');
   const cards = {};
 
   // 1. Full "upgrade" template card, first 3 steps checked (docs/03-database.md §4.4).
-  const arcgisId = insertCard(db, lists.todo, 1 * GAP, {
+  const arcgisId = await insertCard(db, lists.todo, 1 * GAP, {
     code: nextCode(),
     title: 'Upgrade ArcGIS Enterprise 12.1',
     description: 'อัปเกรดระบบ ArcGIS Enterprise ให้เป็นเวอร์ชันล่าสุดตาม roadmap ฝ่าย GIS',
@@ -216,7 +196,7 @@ function insertCards(db, { members, lists }) {
     assigneeIds: [m['ณัฐพล ว.']],
     createdAt: hoursAgo(2),
   });
-  insertSubtasks(db, arcgisId, TEMPLATES.upgrade.items, {
+  await insertSubtasks(db, arcgisId, TEMPLATES.upgrade.items, {
     doneCount: 3,
     assigneeId: m['ณัฐพล ว.'],
     doneBy: 'ณัฐพล ว.',
@@ -224,7 +204,7 @@ function insertCards(db, { members, lists }) {
   cards.arcgis = arcgisId;
 
   // 2. Overdue: critical (4h SLA) created 10h ago, in a non-done column.
-  const overdueId = insertCard(db, lists.doing, 1 * GAP, {
+  const overdueId = await insertCard(db, lists.doing, 1 * GAP, {
     code: nextCode(),
     title: 'Router ที่ Site B ล่ม ผู้ใช้เข้าเน็ตไม่ได้ทั้งชั้น',
     description: 'ผู้ใช้แจ้งเน็ตหลุดทั้งชั้น 4 สงสัย router หลักที่ Site B ค้าง',
@@ -240,7 +220,7 @@ function insertCards(db, { members, lists }) {
   cards.overdue = overdueId;
 
   // 3. PM template card, none done yet.
-  const pmId = insertCard(db, lists.waiting, 1 * GAP, {
+  const pmId = await insertCard(db, lists.waiting, 1 * GAP, {
     code: nextCode(),
     title: 'PM ตรวจเช็ค UPS ประจำเดือน',
     type: 'maintenance',
@@ -253,11 +233,11 @@ function insertCards(db, { members, lists }) {
     assigneeIds: [m['อนุชา น.']],
     createdAt: hoursAgo(3),
   });
-  insertSubtasks(db, pmId, TEMPLATES.pm.items, {});
+  await insertSubtasks(db, pmId, TEMPLATES.pm.items, {});
   cards.pm = pmId;
 
   // 4. Install template card, none done yet.
-  const installId = insertCard(db, lists.backlog, 1 * GAP, {
+  const installId = await insertCard(db, lists.backlog, 1 * GAP, {
     code: nextCode(),
     title: 'ติดตั้ง Access Point ชั้น 3',
     type: 'service_request',
@@ -268,11 +248,11 @@ function insertCards(db, { members, lists }) {
     assigneeIds: [m['วีระ ท.']],
     createdAt: hoursAgo(5),
   });
-  insertSubtasks(db, installId, TEMPLATES.install.items, {});
+  await insertSubtasks(db, installId, TEMPLATES.install.items, {});
   cards.install = installId;
 
   // 5. At-risk #1: high priority (24h SLA), 20h elapsed -> 4h (16.7%) left, in Review.
-  const atRisk1Id = insertCard(db, lists.review, 1 * GAP, {
+  const atRisk1Id = await insertCard(db, lists.review, 1 * GAP, {
     code: nextCode(),
     title: 'แก้ไข VPN Client เชื่อมต่อไม่ได้',
     type: 'incident',
@@ -283,7 +263,7 @@ function insertCards(db, { members, lists }) {
     assigneeIds: [m['ปรียา ส.']],
     createdAt: hoursAgo(20),
   });
-  insertSubtasks(db, atRisk1Id, TEMPLATES.incident.items, {
+  await insertSubtasks(db, atRisk1Id, TEMPLATES.incident.items, {
     doneCount: TEMPLATES.incident.items.length,
     assigneeId: m['ปรียา ส.'],
     doneBy: 'ปรียา ส.',
@@ -291,7 +271,7 @@ function insertCards(db, { members, lists }) {
   cards.atRisk1 = atRisk1Id;
 
   // 6. At-risk #2: low priority (168h SLA), 140h elapsed -> 28h (16.7%) left.
-  const atRisk2Id = insertCard(db, lists.doing, 2 * GAP, {
+  const atRisk2Id = await insertCard(db, lists.doing, 2 * GAP, {
     code: nextCode(),
     title: 'Backup Config Switch Core',
     type: 'maintenance',
@@ -305,7 +285,7 @@ function insertCards(db, { members, lists }) {
   cards.atRisk2 = atRisk2Id;
 
   // 7-9, 11-12: assorted cards for board realism (ok SLA status).
-  cards.emailAccess = insertCard(db, lists.todo, 2 * GAP, {
+  cards.emailAccess = await insertCard(db, lists.todo, 2 * GAP, {
     code: nextCode(),
     title: 'ขอสิทธิ์เข้าถึงระบบ Email ผู้ใช้ใหม่',
     type: 'service_request',
@@ -316,7 +296,7 @@ function insertCards(db, { members, lists }) {
     createdAt: hoursAgo(1),
   });
 
-  cards.firewallFw = insertCard(db, lists.backlog, 2 * GAP, {
+  cards.firewallFw = await insertCard(db, lists.backlog, 2 * GAP, {
     code: nextCode(),
     title: 'เปลี่ยน Firmware Firewall',
     type: 'change',
@@ -329,7 +309,7 @@ function insertCards(db, { members, lists }) {
     createdAt: hoursAgo(4),
   });
 
-  cards.storageFull = insertCard(db, lists.doing, 3 * GAP, {
+  cards.storageFull = await insertCard(db, lists.doing, 3 * GAP, {
     code: nextCode(),
     title: 'ตรวจสอบ Server Storage เต็ม 90%',
     type: 'incident',
@@ -341,7 +321,7 @@ function insertCards(db, { members, lists }) {
     createdAt: hoursAgo(1),
   });
 
-  const doneId = insertCard(db, lists.done, 1 * GAP, {
+  const doneId = await insertCard(db, lists.done, 1 * GAP, {
     code: nextCode(),
     title: 'PM ตรวจเช็คเครื่องสำรองไฟห้อง Data Center',
     type: 'maintenance',
@@ -353,14 +333,14 @@ function insertCards(db, { members, lists }) {
     createdAt: hoursAgo(200),
     completedAt: hoursAgo(2),
   });
-  insertSubtasks(db, doneId, TEMPLATES.pm.items, {
+  await insertSubtasks(db, doneId, TEMPLATES.pm.items, {
     doneCount: TEMPLATES.pm.items.length,
     assigneeId: m['อนุชา น.'],
     doneBy: 'อนุชา น.',
   });
   cards.done = doneId;
 
-  cards.cctv = insertCard(db, lists.todo, 3 * GAP, {
+  cards.cctv = await insertCard(db, lists.todo, 3 * GAP, {
     code: nextCode(),
     title: 'ติดตั้งกล้องวงจรปิดจุดใหม่',
     type: 'service_request',
@@ -371,7 +351,7 @@ function insertCards(db, { members, lists }) {
     createdAt: hoursAgo(1),
   });
 
-  cards.patchOs = insertCard(db, lists.waiting, 2 * GAP, {
+  cards.patchOs = await insertCard(db, lists.waiting, 2 * GAP, {
     code: nextCode(),
     title: 'อัปเดต Patch OS Windows Server',
     type: 'change',
@@ -386,18 +366,18 @@ function insertCards(db, { members, lists }) {
   return cards;
 }
 
-export function seedDatabase(db) {
-  const members = insertMembers(db);
-  const { boardId, lists } = insertBoardAndLists(db);
-  const templates = insertTemplates(db);
-  const cards = insertCards(db, { members, lists, templates });
+export async function seedDatabase(db) {
+  const members = await insertMembers(db);
+  const { boardId, lists } = await insertBoardAndLists(db);
+  const templates = await insertTemplates(db);
+  const cards = await insertCards(db, { members, lists, templates });
   return { members, boardId, lists, templates, cards };
 }
 
 // Run directly via `npm run seed` — seeds the DB at DB_PATH.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { default: db } = await import('./connection.js');
-  const result = seedDatabase(db);
+  const result = await seedDatabase(db);
   console.warn(
     `Seeded ${Object.keys(result.members).length} members, ${Object.keys(result.lists).length} lists, ` +
       `${Object.keys(result.templates).length} templates, ${Object.keys(result.cards).length} cards.`,

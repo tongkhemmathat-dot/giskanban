@@ -27,8 +27,8 @@ const SUBTASK_SELECT = `
   FROM subtasks s LEFT JOIN members m ON m.id = s.assignee_id
 `;
 
-function fetchSubtaskRow(sid) {
-  return db.prepare(`${SUBTASK_SELECT} WHERE s.id = ?`).get(sid);
+async function fetchSubtaskRow(sid) {
+  return db.get(`${SUBTASK_SELECT} WHERE s.id = ?`, [sid]);
 }
 
 // isOverdue (backlog: per-subtask due dates + warning) — past its due_date
@@ -54,20 +54,18 @@ function mapSubtaskRow(row) {
   };
 }
 
-export function listSubtasksForCard(cardId) {
-  return db
-    .prepare(`${SUBTASK_SELECT} WHERE s.card_id = ? ORDER BY s.position`)
-    .all(cardId)
-    .map(mapSubtaskRow);
+export async function listSubtasksForCard(cardId) {
+  const rows = await db.all(`${SUBTASK_SELECT} WHERE s.card_id = ? ORDER BY s.position`, [cardId]);
+  return rows.map(mapSubtaskRow);
 }
 
-export function getCardProgress(cardId) {
-  const row = db.prepare('SELECT total, done, pct FROM card_progress WHERE card_id = ?').get(cardId);
+export async function getCardProgress(cardId) {
+  const row = await db.get('SELECT total, done, pct FROM card_progress WHERE card_id = ?', [cardId]);
   return row ? { done: row.done, total: row.total, pct: row.pct } : { done: 0, total: 0, pct: 0 };
 }
 
-function requireCard(cardId) {
-  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(cardId);
+async function requireCard(cardId) {
+  const card = await db.get('SELECT * FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
   return card;
 }
@@ -77,34 +75,40 @@ function requireCard(cardId) {
 // Shared by createSubtasks (3.1) and applyTemplate (3.7): both just append a
 // batch of titles to a card, capped so the card never exceeds
 // MAX_SUBTASKS_PER_CARD total (docs/05-business-rules.md §4.4 rule 5).
-function insertTitles(cardId, titles) {
-  const existingCount = db.prepare('SELECT COUNT(*) AS n FROM subtasks WHERE card_id = ?').get(cardId).n;
+async function insertTitles(cardId, titles) {
+  const existingCount = (await db.get('SELECT COUNT(*) AS n FROM subtasks WHERE card_id = ?', [cardId])).n;
   const room = Math.max(0, MAX_SUBTASKS_PER_CARD - existingCount);
   const toInsert = titles.slice(0, room);
 
   // Positions must be strictly increasing even within this one batch, so
   // compute them off a running base rather than re-querying MAX() per row.
-  const base = db.prepare('SELECT MAX(position) AS maxPos FROM subtasks WHERE card_id = ?').get(cardId).maxPos ?? 0;
-  const stmt = db.prepare('INSERT INTO subtasks (card_id, title, position) VALUES (?, ?, ?)');
-  return toInsert.map((title, i) => Number(stmt.run(cardId, title, base + (i + 1) * GAP).lastInsertRowid));
+  const base = (await db.get('SELECT MAX(position) AS maxPos FROM subtasks WHERE card_id = ?', [cardId])).maxPos ?? 0;
+  const insertedIds = [];
+  for (let i = 0; i < toInsert.length; i++) {
+    const info = await db.run('INSERT INTO subtasks (card_id, title, position) VALUES (?, ?, ?)', [cardId, toInsert[i], base + (i + 1) * GAP]);
+    insertedIds.push(Number(info.lastInsertRowid));
+  }
+  return insertedIds;
 }
 
-function createSubtasksTxn(cardId, titles, actorName) {
-  requireCard(cardId);
-  const insertedIds = insertTitles(cardId, titles);
+async function createSubtasksTxn(cardId, titles, actorName) {
+  await requireCard(cardId);
+  const insertedIds = await insertTitles(cardId, titles);
 
   if (insertedIds.length) {
-    logActivity({
+    const insertedRows = await Promise.all(insertedIds.map((id) => fetchSubtaskRow(id)));
+    await logActivity({
       cardId,
       actorName: actorName ?? null,
       action: 'subtask_added',
-      meta: { count: insertedIds.length, titles: insertedIds.map((id) => fetchSubtaskRow(id).title) },
+      meta: { count: insertedIds.length, titles: insertedRows.map((row) => row.title) },
     });
   }
 
+  const items = await Promise.all(insertedIds.map((id) => fetchSubtaskRow(id)));
   return {
-    items: insertedIds.map((id) => mapSubtaskRow(fetchSubtaskRow(id))),
-    progress: getCardProgress(cardId),
+    items: items.map(mapSubtaskRow),
+    progress: await getCardProgress(cardId),
   };
 }
 
@@ -114,8 +118,8 @@ export function createSubtasks(cardId, titles, actorName) {
 
 // ---- update (3.2) -----------------------------------------------------------
 
-function updateSubtaskTxn(sid, fields) {
-  const existing = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(sid);
+async function updateSubtaskTxn(sid, fields) {
+  const existing = await db.get('SELECT * FROM subtasks WHERE id = ?', [sid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบขั้นตอนนี้', 404);
 
   const next = {
@@ -125,20 +129,20 @@ function updateSubtaskTxn(sid, fields) {
         ? existing.assignee_id
         : fields.assigneeName === null
           ? null
-          : findOrCreateMemberByName(fields.assigneeName).id,
+          : (await findOrCreateMemberByName(fields.assigneeName)).id,
     due_date: fields.dueDate !== undefined ? fields.dueDate : existing.due_date,
     note: fields.note !== undefined ? fields.note : existing.note,
   };
 
-  db.prepare('UPDATE subtasks SET title = ?, assignee_id = ?, due_date = ?, note = ? WHERE id = ?').run(
+  await db.run('UPDATE subtasks SET title = ?, assignee_id = ?, due_date = ?, note = ? WHERE id = ?', [
     next.title,
     next.assignee_id,
     next.due_date,
     next.note,
     sid,
-  );
+  ]);
 
-  return mapSubtaskRow(fetchSubtaskRow(sid));
+  return mapSubtaskRow(await fetchSubtaskRow(sid));
 }
 
 export function updateSubtask(sid, fields) {
@@ -149,47 +153,40 @@ export function updateSubtask(sid, fields) {
 
 // docs/05-business-rules.md §4.3 — only the "marking done" direction can
 // trigger a move; un-checking never moves anything.
-function toggleSubtaskTxn(sid, actorName) {
-  const existing = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(sid);
+async function toggleSubtaskTxn(sid, actorName) {
+  const existing = await db.get('SELECT * FROM subtasks WHERE id = ?', [sid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบขั้นตอนนี้', 404);
 
   const nowDone = !existing.is_done;
   const doneBy = nowDone ? actorName : null;
   const doneAt = nowDone ? nowSqlite() : null;
-  db.prepare('UPDATE subtasks SET is_done = ?, done_by = ?, done_at = ? WHERE id = ?').run(
-    nowDone ? 1 : 0,
-    doneBy,
-    doneAt,
-    sid,
-  );
-  logActivity({
+  await db.run('UPDATE subtasks SET is_done = ?, done_by = ?, done_at = ? WHERE id = ?', [nowDone ? 1 : 0, doneBy, doneAt, sid]);
+  await logActivity({
     cardId: existing.card_id,
     actorName: actorName ?? null,
     action: nowDone ? 'subtask_done' : 'subtask_undone',
     meta: { title: existing.title },
   });
 
-  const progress = getCardProgress(existing.card_id);
-  const card = db.prepare('SELECT * FROM cards WHERE id = ?').get(existing.card_id);
+  const progress = await getCardProgress(existing.card_id);
+  const card = await db.get('SELECT * FROM cards WHERE id = ?', [existing.card_id]);
   let movedTo = null;
 
   if (nowDone) {
-    const currentList = db.prepare('SELECT * FROM lists WHERE id = ?').get(card.list_id);
+    const currentList = await db.get('SELECT * FROM lists WHERE id = ?', [card.list_id]);
     if (progress.done >= 1 && ['backlog', 'todo'].includes(currentList.slug)) {
       // "ติ๊กขั้นแรกสำเร็จ" -> auto-move to In Progress + set started_at (docs/05 §4.3).
-      const target = db.prepare('SELECT * FROM lists WHERE slug = ?').get('doing');
-      const position = midPosition(
-        db.prepare('SELECT MAX(position) AS maxPos FROM cards WHERE list_id = ?').get(target.id).maxPos ?? null,
-        null,
-      );
-      db.prepare('UPDATE cards SET list_id = ?, position = ?, started_at = ?, updated_at = ? WHERE id = ?').run(
+      const target = await db.get('SELECT * FROM lists WHERE slug = ?', ['doing']);
+      const maxPos = (await db.get('SELECT MAX(position) AS maxPos FROM cards WHERE list_id = ?', [target.id])).maxPos ?? null;
+      const position = midPosition(maxPos, null);
+      await db.run('UPDATE cards SET list_id = ?, position = ?, started_at = ?, updated_at = ? WHERE id = ?', [
         target.id,
         position,
         card.started_at ?? nowSqlite(),
         nowSqlite(),
         card.id,
-      );
-      logActivity({
+      ]);
+      await logActivity({
         cardId: card.id,
         actorName: actorName ?? null,
         action: 'card_moved',
@@ -202,10 +199,10 @@ function toggleSubtaskTxn(sid, actorName) {
     }
   }
 
-  const updatedCard = db.prepare('SELECT id, list_id FROM cards WHERE id = ?').get(existing.card_id);
+  const updatedCard = await db.get('SELECT id, list_id FROM cards WHERE id = ?', [existing.card_id]);
 
   return {
-    subtask: mapSubtaskRow(fetchSubtaskRow(sid)),
+    subtask: mapSubtaskRow(await fetchSubtaskRow(sid)),
     progress,
     card: { id: updatedCard.id, listId: updatedCard.list_id },
     ...(movedTo ? { movedTo } : {}),
@@ -218,13 +215,13 @@ export function toggleSubtask(sid, actorName) {
 
 // ---- delete (3.5) ------------------------------------------------------------
 
-function deleteSubtaskTxn(sid) {
-  const existing = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(sid);
+async function deleteSubtaskTxn(sid) {
+  const existing = await db.get('SELECT * FROM subtasks WHERE id = ?', [sid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบขั้นตอนนี้', 404);
 
-  db.prepare('DELETE FROM subtasks WHERE id = ?').run(sid);
+  await db.run('DELETE FROM subtasks WHERE id = ?', [sid]);
 
-  return { progress: getCardProgress(existing.card_id) };
+  return { progress: await getCardProgress(existing.card_id) };
 }
 
 export function deleteSubtask(sid) {
@@ -233,19 +230,21 @@ export function deleteSubtask(sid) {
 
 // ---- reorder (3.6) ------------------------------------------------------------
 
-function reorderSubtasksTxn(cardId, orderedIds) {
-  requireCard(cardId);
+async function reorderSubtasksTxn(cardId, orderedIds) {
+  await requireCard(cardId);
 
-  const existingIds = db.prepare('SELECT id FROM subtasks WHERE card_id = ?').all(cardId).map((r) => r.id);
+  const existingRows = await db.all('SELECT id FROM subtasks WHERE card_id = ?', [cardId]);
+  const existingIds = existingRows.map((r) => r.id);
   const sameSet = existingIds.length === orderedIds.length && existingIds.every((id) => orderedIds.includes(id));
   if (!sameSet) {
     throw new AppError('VALIDATION_ERROR', 'orderedIds ต้องตรงกับขั้นตอนทั้งหมดของใบงานนี้', 400);
   }
 
-  const stmt = db.prepare('UPDATE subtasks SET position = ? WHERE id = ?');
-  orderedIds.forEach((id, i) => stmt.run((i + 1) * GAP, id));
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.run('UPDATE subtasks SET position = ? WHERE id = ?', [(i + 1) * GAP, orderedIds[i]]);
+  }
 
-  return { items: listSubtasksForCard(cardId) };
+  return { items: await listSubtasksForCard(cardId) };
 }
 
 export function reorderSubtasks(cardId, orderedIds) {
@@ -254,16 +253,16 @@ export function reorderSubtasks(cardId, orderedIds) {
 
 // ---- apply template (3.7) ------------------------------------------------------
 
-function applyTemplateTxn(cardId, templateSlug, actorName) {
-  requireCard(cardId);
-  const template = db.prepare('SELECT * FROM templates WHERE slug = ?').get(templateSlug);
+async function applyTemplateTxn(cardId, templateSlug, actorName) {
+  await requireCard(cardId);
+  const template = await db.get('SELECT * FROM templates WHERE slug = ?', [templateSlug]);
   if (!template) throw new AppError('NOT_FOUND', 'ไม่พบแม่แบบขั้นตอนนี้', 404);
 
   // Template items always append after whatever's already there — never replace (docs/05 §4.4 rule 1).
-  const insertedIds = insertTitles(cardId, JSON.parse(template.items));
+  const insertedIds = await insertTitles(cardId, JSON.parse(template.items));
 
   if (insertedIds.length) {
-    logActivity({
+    await logActivity({
       cardId,
       actorName: actorName ?? null,
       action: 'template_applied',
@@ -272,8 +271,8 @@ function applyTemplateTxn(cardId, templateSlug, actorName) {
   }
 
   return {
-    items: listSubtasksForCard(cardId),
-    progress: getCardProgress(cardId),
+    items: await listSubtasksForCard(cardId),
+    progress: await getCardProgress(cardId),
     added: insertedIds.length,
   };
 }

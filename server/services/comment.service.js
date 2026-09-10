@@ -23,31 +23,29 @@ function mapCommentRow(row) {
   };
 }
 
-export function listComments(cardId) {
-  return db
-    .prepare(`${COMMENT_SELECT} WHERE c.card_id = ? ORDER BY c.created_at`)
-    .all(cardId)
-    .map(mapCommentRow);
+export async function listComments(cardId) {
+  const rows = await db.all(`${COMMENT_SELECT} WHERE c.card_id = ? ORDER BY c.created_at`, [cardId]);
+  return rows.map(mapCommentRow);
 }
 
-function createCommentTxn(cardId, authorName, body) {
-  const card = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardId);
+async function createCommentTxn(cardId, authorName, body) {
+  const card = await db.get('SELECT id FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
 
-  const author = findOrCreateMemberByName(authorName);
-  const info = db.prepare('INSERT INTO comments (card_id, author_id, body) VALUES (?, ?, ?)').run(cardId, author.id, body);
+  const author = await findOrCreateMemberByName(authorName);
+  const info = await db.run('INSERT INTO comments (card_id, author_id, body) VALUES (?, ?, ?)', [cardId, author.id, body]);
 
-  logActivity({ cardId, actorName: authorName, action: 'comment_added', meta: { excerpt: body.slice(0, 80) } });
+  await logActivity({ cardId, actorName: authorName, action: 'comment_added', meta: { excerpt: body.slice(0, 80) } });
 
-  return mapCommentRow(db.prepare(`${COMMENT_SELECT} WHERE c.id = ?`).get(info.lastInsertRowid));
+  return mapCommentRow(await db.get(`${COMMENT_SELECT} WHERE c.id = ?`, [info.lastInsertRowid]));
 }
 
 export function createComment(cardId, authorName, body) {
   return db.transaction(createCommentTxn)(cardId, authorName, body);
 }
 
-export function deleteComment(cid) {
-  const existing = db.prepare('SELECT id FROM comments WHERE id = ?').get(cid);
+export async function deleteComment(cid) {
+  const existing = await db.get('SELECT id FROM comments WHERE id = ?', [cid]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบความคิดเห็นนี้', 404);
-  db.prepare('DELETE FROM comments WHERE id = ?').run(cid);
+  await db.run('DELETE FROM comments WHERE id = ?', [cid]);
 }

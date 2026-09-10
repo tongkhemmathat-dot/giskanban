@@ -4,20 +4,21 @@
 // '/comments/:cid'), same as subtasks.routes.js.
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCommentSchema } from '../schemas/comment.schema.js';
 import { idParamSchema, cidParamSchema } from '../schemas/common.schema.js';
 import * as svc from '../services/comment.service.js';
 
 const r = Router();
 
-r.post('/cards/:id/comments', validate(idParamSchema, 'params'), validate(createCommentSchema), (req, res) => {
+r.post('/cards/:id/comments', validate(idParamSchema, 'params'), validate(createCommentSchema), asyncHandler(async (req, res) => {
   const { authorName, body } = req.body;
-  res.status(201).json(svc.createComment(req.params.id, authorName, body));
-});
+  res.status(201).json(await svc.createComment(req.params.id, authorName, body));
+}));
 
-r.delete('/comments/:cid', validate(cidParamSchema, 'params'), (req, res) => {
-  svc.deleteComment(req.params.cid);
+r.delete('/comments/:cid', validate(cidParamSchema, 'params'), asyncHandler(async (req, res) => {
+  await svc.deleteComment(req.params.cid);
   res.status(204).end();
-});
+}));
 
 export default r;

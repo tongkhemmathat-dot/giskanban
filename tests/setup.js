@@ -1,18 +1,20 @@
 // Shared test-db factory. createTestDb({ seed }) returns a brand-new
-// in-memory better-sqlite3 instance with migrations applied, and seed data
+// in-memory sqlite-backed connection (server/db/connection.js's
+// createSqliteBackend(':memory:')) with migrations applied, and seed data
 // applied unless `seed: false` is passed. Every call is fully isolated
 // (fresh :memory: db) — this exact interface is relied on by API tests in
-// tests/api/*.test.js (Agents 2, 3, 6), so its shape should not change.
-import Database from 'better-sqlite3';
+// tests/api/*.test.js. Always in-memory better-sqlite3 regardless of whether
+// TURSO_DATABASE_URL is set in the environment — tests want fast, isolated,
+// no-network runs, not a shared connection to a real Turso database.
+import { createSqliteBackend } from '../server/db/connection.js';
 import { runMigrations } from '../server/db/migrate.js';
 import { seedDatabase } from '../server/db/seed.js';
 
-export function createTestDb({ seed = true } = {}) {
-  const db = new Database(':memory:');
-  db.pragma('foreign_keys = ON');
-  runMigrations(db);
+export async function createTestDb({ seed = true } = {}) {
+  const db = createSqliteBackend(':memory:');
+  await runMigrations(db);
   if (seed) {
-    seedDatabase(db);
+    await seedDatabase(db);
   }
   return db;
 }

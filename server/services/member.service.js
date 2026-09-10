@@ -43,24 +43,23 @@ function toApiMember(row) {
  * existing row untouched; a new name auto-creates one with `short` = first 2
  * characters and a random color.
  */
-export function findOrCreateMemberByName(name) {
+export async function findOrCreateMemberByName(name) {
   const trimmed = String(name).trim();
-  const existing = db.prepare('SELECT * FROM members WHERE name = ?').get(trimmed);
+  const existing = await db.get('SELECT * FROM members WHERE name = ?', [trimmed]);
   if (existing) return existing;
   const short = trimmed.slice(0, 2);
   const color = randomColor();
-  const info = db
-    .prepare('INSERT INTO members (name, short, color) VALUES (?, ?, ?)')
-    .run(trimmed, short, color);
-  return db.prepare('SELECT * FROM members WHERE id = ?').get(info.lastInsertRowid);
+  const info = await db.run('INSERT INTO members (name, short, color) VALUES (?, ?, ?)', [trimmed, short, color]);
+  return db.get('SELECT * FROM members WHERE id = ?', [info.lastInsertRowid]);
 }
 
-export function listMembers({ active } = {}) {
+export async function listMembers({ active } = {}) {
   let sql = 'SELECT * FROM members';
   if (active === '1') sql += ' WHERE is_active = 1';
   else if (active === '0') sql += ' WHERE is_active = 0';
   sql += ' ORDER BY name';
-  return db.prepare(sql).all().map(toApiMember);
+  const rows = await db.all(sql, []);
+  return rows.map(toApiMember);
 }
 
 /**
@@ -69,18 +68,18 @@ export function listMembers({ active } = {}) {
  * `created: false` (-> 200, same row) when the name already exists — never
  * creates a duplicate (docs/07-roadmap.md 2.3 AC).
  */
-export function upsertMember(name) {
+export async function upsertMember(name) {
   const trimmed = String(name).trim();
-  const existing = db.prepare('SELECT * FROM members WHERE name = ?').get(trimmed);
+  const existing = await db.get('SELECT * FROM members WHERE name = ?', [trimmed]);
   if (existing) {
     return { member: toApiMember(existing), created: false };
   }
-  const row = findOrCreateMemberByName(trimmed);
+  const row = await findOrCreateMemberByName(trimmed);
   return { member: toApiMember(row), created: true };
 }
 
-export function updateMember(id, fields) {
-  const existing = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+export async function updateMember(id, fields) {
+  const existing = await db.get('SELECT * FROM members WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบสมาชิกนี้', 404);
 
   const next = {
@@ -90,15 +89,15 @@ export function updateMember(id, fields) {
     is_active: fields.isActive === undefined ? existing.is_active : fields.isActive ? 1 : 0,
   };
 
-  db.prepare('UPDATE members SET name = ?, short = ?, color = ?, is_active = ? WHERE id = ?').run(
+  await db.run('UPDATE members SET name = ?, short = ?, color = ?, is_active = ? WHERE id = ?', [
     next.name,
     next.short,
     next.color,
     next.is_active,
     id,
-  );
+  ]);
 
-  return toApiMember(db.prepare('SELECT * FROM members WHERE id = ?').get(id));
+  return toApiMember(await db.get('SELECT * FROM members WHERE id = ?', [id]));
 }
 
 /**
@@ -106,18 +105,18 @@ export function updateMember(id, fields) {
  * the creator of any card can never be deleted (409 CONFLICT); the caller
  * (UI) is expected to deactivate them instead via PATCH { isActive: false }.
  */
-function deleteMemberTxn(id) {
-  const existing = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+async function deleteMemberTxn(id) {
+  const existing = await db.get('SELECT * FROM members WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบสมาชิกนี้', 404);
 
-  const { n } = db.prepare('SELECT COUNT(*) AS n FROM cards WHERE creator_id = ?').get(id);
+  const { n } = await db.get('SELECT COUNT(*) AS n FROM cards WHERE creator_id = ?', [id]);
   if (n > 0) {
     throw new AppError('CONFLICT', 'ไม่สามารถลบสมาชิกที่เป็นผู้สร้างใบงานอยู่ได้ — ปิดใช้งานแทน', 409);
   }
 
-  db.prepare('DELETE FROM members WHERE id = ?').run(id);
+  await db.run('DELETE FROM members WHERE id = ?', [id]);
 }
 
-export function deleteMember(id) {
+export async function deleteMember(id) {
   return db.transaction(deleteMemberTxn)(id);
 }

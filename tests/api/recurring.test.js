@@ -6,8 +6,8 @@ import { useTestDb } from '../helpers/testDb.js';
 describe('Recurring cards API', () => {
   const getDb = useTestDb();
 
-  function todoListId() {
-    return getDb().prepare("SELECT id FROM lists WHERE slug = 'todo'").get().id;
+  async function todoListId() {
+    return (await getDb().get("SELECT id FROM lists WHERE slug = 'todo'", [])).id;
   }
 
   it('R1: POST creates a weekly rule and computes nextRunAt', async () => {
@@ -15,7 +15,7 @@ describe('Recurring cards API', () => {
       .post('/api/recurring-cards')
       .send({
         name: 'PM เราท์เตอร์ชั้น 5 รายสัปดาห์',
-        listId: todoListId(),
+        listId: await todoListId(),
         title: 'ตรวจเช็คเราท์เตอร์ชั้น 5',
         creatorName: 'สมชาย ก.',
         templateSlug: 'pm',
@@ -31,7 +31,7 @@ describe('Recurring cards API', () => {
   it('R2: POST weekly without dayOfWeek -> 400 VALIDATION_ERROR', async () => {
     const res = await request(app)
       .post('/api/recurring-cards')
-      .send({ name: 'ผิดพลาด', listId: todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly' });
+      .send({ name: 'ผิดพลาด', listId: await todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
@@ -41,7 +41,7 @@ describe('Recurring cards API', () => {
       .post('/api/recurring-cards')
       .send({
         name: 'PM รายเดือน',
-        listId: todoListId(),
+        listId: await todoListId(),
         title: 'ตรวจเช็คอุปกรณ์ประจำเดือน',
         creatorName: 'ณัฐพล ว.',
         templateSlug: 'pm',
@@ -63,7 +63,7 @@ describe('Recurring cards API', () => {
   it('R4: PATCH can deactivate a rule', async () => {
     const created = await request(app)
       .post('/api/recurring-cards')
-      .send({ name: 'จะปิด', listId: todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly', dayOfWeek: 3 });
+      .send({ name: 'จะปิด', listId: await todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly', dayOfWeek: 3 });
 
     const res = await request(app).patch(`/api/recurring-cards/${created.body.id}`).send({ isActive: false });
     expect(res.status).toBe(200);
@@ -73,7 +73,7 @@ describe('Recurring cards API', () => {
   it('R5: DELETE removes the rule', async () => {
     const created = await request(app)
       .post('/api/recurring-cards')
-      .send({ name: 'จะถูกลบ', listId: todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly', dayOfWeek: 3 });
+      .send({ name: 'จะถูกลบ', listId: await todoListId(), title: 'x', creatorName: 'สมชาย ก.', frequency: 'weekly', dayOfWeek: 3 });
 
     const del = await request(app).delete(`/api/recurring-cards/${created.body.id}`);
     expect(del.status).toBe(204);

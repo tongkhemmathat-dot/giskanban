@@ -4,19 +4,20 @@
 // '/time-logs/:tid'), same as subtasks.routes.js.
 import { Router } from 'express';
 import { validate } from '../middleware/validate.js';
+import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createTimeLogSchema } from '../schemas/timelog.schema.js';
 import { idParamSchema, tidParamSchema } from '../schemas/common.schema.js';
 import * as svc from '../services/timelog.service.js';
 
 const r = Router();
 
-r.post('/cards/:id/time-logs', validate(idParamSchema, 'params'), validate(createTimeLogSchema), (req, res) => {
-  res.status(201).json(svc.createTimeLog(req.params.id, req.body));
-});
+r.post('/cards/:id/time-logs', validate(idParamSchema, 'params'), validate(createTimeLogSchema), asyncHandler(async (req, res) => {
+  res.status(201).json(await svc.createTimeLog(req.params.id, req.body));
+}));
 
-r.delete('/time-logs/:tid', validate(tidParamSchema, 'params'), (req, res) => {
-  svc.deleteTimeLog(req.params.tid);
+r.delete('/time-logs/:tid', validate(tidParamSchema, 'params'), asyncHandler(async (req, res) => {
+  await svc.deleteTimeLog(req.params.tid);
   res.status(204).end();
-});
+}));
 
 export default r;

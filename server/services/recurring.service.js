@@ -43,63 +43,59 @@ const BASE_SELECT = `
   LEFT JOIN members am ON am.id = rc.assignee_id
 `;
 
-export function listRecurring() {
-  return db.prepare(`${BASE_SELECT} ORDER BY rc.id`).all().map(mapRow);
+export async function listRecurring() {
+  const rows = await db.all(`${BASE_SELECT} ORDER BY rc.id`, []);
+  return rows.map(mapRow);
 }
 
-export function getRecurringById(id) {
-  const row = db.prepare(`${BASE_SELECT} WHERE rc.id = ?`).get(id);
+export async function getRecurringById(id) {
+  const row = await db.get(`${BASE_SELECT} WHERE rc.id = ?`, [id]);
   if (!row) throw new AppError('NOT_FOUND', 'ไม่พบกฎใบงานประจำนี้', 404);
   return mapRow(row);
 }
 
-function assertListAndTemplateExist(listId, templateSlug) {
-  const list = db.prepare('SELECT id FROM lists WHERE id = ?').get(listId);
+async function assertListAndTemplateExist(listId, templateSlug) {
+  const list = await db.get('SELECT id FROM lists WHERE id = ?', [listId]);
   if (!list) throw new AppError('VALIDATION_ERROR', 'ไม่พบคอลัมน์ที่ระบุ', 400, [{ path: 'listId', message: 'ไม่พบคอลัมน์ที่ระบุ' }]);
 
   if (templateSlug) {
-    const template = db.prepare('SELECT slug FROM templates WHERE slug = ?').get(templateSlug);
+    const template = await db.get('SELECT slug FROM templates WHERE slug = ?', [templateSlug]);
     if (!template) throw new AppError('NOT_FOUND', 'ไม่พบแม่แบบขั้นตอนนี้', 404);
   }
 }
 
-function createRecurringTxn(input) {
-  assertListAndTemplateExist(input.listId, input.templateSlug);
-  const creator = findOrCreateMemberByName(input.creatorName);
-  const assignee = input.assigneeName ? findOrCreateMemberByName(input.assigneeName) : null;
+async function createRecurringTxn(input) {
+  await assertListAndTemplateExist(input.listId, input.templateSlug);
+  const creator = await findOrCreateMemberByName(input.creatorName);
+  const assignee = input.assigneeName ? await findOrCreateMemberByName(input.assigneeName) : null;
   const nextRunAt = computeNextRun(input.frequency, { dayOfWeek: input.dayOfWeek, dayOfMonth: input.dayOfMonth });
 
-  const info = db
-    .prepare(
-      `INSERT INTO recurring_cards (
-        name, list_id, title, description, type, priority, site, customer,
-        device_ref, project_code, template_slug, creator_id, assignee_id,
-        frequency, day_of_week, day_of_month, is_active, next_run_at
-      ) VALUES (
-        @name, @list_id, @title, @description, @type, @priority, @site, @customer,
-        @device_ref, @project_code, @template_slug, @creator_id, @assignee_id,
-        @frequency, @day_of_week, @day_of_month, 1, @next_run_at
-      )`,
-    )
-    .run({
-      name: input.name,
-      list_id: input.listId,
-      title: input.title,
-      description: input.description ?? null,
-      type: input.type,
-      priority: input.priority,
-      site: input.site ?? null,
-      customer: input.customer ?? null,
-      device_ref: input.deviceRef ?? null,
-      project_code: input.projectCode ?? null,
-      template_slug: input.templateSlug ?? null,
-      creator_id: creator.id,
-      assignee_id: assignee?.id ?? null,
-      frequency: input.frequency,
-      day_of_week: input.frequency === 'weekly' ? input.dayOfWeek : null,
-      day_of_month: input.frequency === 'monthly' ? input.dayOfMonth : null,
-      next_run_at: nextRunAt,
-    });
+  const info = await db.run(
+    `INSERT INTO recurring_cards (
+      name, list_id, title, description, type, priority, site, customer,
+      device_ref, project_code, template_slug, creator_id, assignee_id,
+      frequency, day_of_week, day_of_month, is_active, next_run_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [
+      input.name,
+      input.listId,
+      input.title,
+      input.description ?? null,
+      input.type,
+      input.priority,
+      input.site ?? null,
+      input.customer ?? null,
+      input.deviceRef ?? null,
+      input.projectCode ?? null,
+      input.templateSlug ?? null,
+      creator.id,
+      assignee?.id ?? null,
+      input.frequency,
+      input.frequency === 'weekly' ? input.dayOfWeek : null,
+      input.frequency === 'monthly' ? input.dayOfMonth : null,
+      nextRunAt,
+    ],
+  );
 
   return getRecurringById(Number(info.lastInsertRowid));
 }
@@ -108,13 +104,13 @@ export function createRecurring(input) {
   return db.transaction(createRecurringTxn)(input);
 }
 
-function updateRecurringTxn(id, fields) {
-  const existing = db.prepare('SELECT * FROM recurring_cards WHERE id = ?').get(id);
+async function updateRecurringTxn(id, fields) {
+  const existing = await db.get('SELECT * FROM recurring_cards WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบกฎใบงานประจำนี้', 404);
 
   const listId = fields.listId ?? existing.list_id;
   const templateSlug = fields.templateSlug !== undefined ? fields.templateSlug : existing.template_slug;
-  assertListAndTemplateExist(listId, templateSlug);
+  await assertListAndTemplateExist(listId, templateSlug);
 
   const frequency = fields.frequency ?? existing.frequency;
   const dayOfWeek = fields.dayOfWeek !== undefined ? fields.dayOfWeek : existing.day_of_week;
@@ -127,7 +123,7 @@ function updateRecurringTxn(id, fields) {
 
   let assigneeId = existing.assignee_id;
   if (fields.assigneeName !== undefined) {
-    assigneeId = fields.assigneeName ? findOrCreateMemberByName(fields.assigneeName).id : null;
+    assigneeId = fields.assigneeName ? (await findOrCreateMemberByName(fields.assigneeName)).id : null;
   }
 
   const merged = {
@@ -150,14 +146,34 @@ function updateRecurringTxn(id, fields) {
     next_run_at: nextRunAt,
   };
 
-  db.prepare(
+  await db.run(
     `UPDATE recurring_cards SET
-       name=@name, list_id=@list_id, title=@title, description=@description, type=@type, priority=@priority,
-       site=@site, customer=@customer, device_ref=@device_ref, project_code=@project_code, template_slug=@template_slug,
-       assignee_id=@assignee_id, frequency=@frequency, day_of_week=@day_of_week, day_of_month=@day_of_month,
-       is_active=@is_active, next_run_at=@next_run_at
-     WHERE id=@id`,
-  ).run({ ...merged, id });
+       name=?, list_id=?, title=?, description=?, type=?, priority=?,
+       site=?, customer=?, device_ref=?, project_code=?, template_slug=?,
+       assignee_id=?, frequency=?, day_of_week=?, day_of_month=?,
+       is_active=?, next_run_at=?
+     WHERE id=?`,
+    [
+      merged.name,
+      merged.list_id,
+      merged.title,
+      merged.description,
+      merged.type,
+      merged.priority,
+      merged.site,
+      merged.customer,
+      merged.device_ref,
+      merged.project_code,
+      merged.template_slug,
+      merged.assignee_id,
+      merged.frequency,
+      merged.day_of_week,
+      merged.day_of_month,
+      merged.is_active,
+      merged.next_run_at,
+      id,
+    ],
+  );
 
   return getRecurringById(id);
 }
@@ -166,19 +182,19 @@ export function updateRecurring(id, fields) {
   return db.transaction(updateRecurringTxn)(id, fields);
 }
 
-export function deleteRecurring(id) {
-  const existing = db.prepare('SELECT id FROM recurring_cards WHERE id = ?').get(id);
+export async function deleteRecurring(id) {
+  const existing = await db.get('SELECT id FROM recurring_cards WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบกฎใบงานประจำนี้', 404);
-  db.prepare('DELETE FROM recurring_cards WHERE id = ?').run(id);
+  await db.run('DELETE FROM recurring_cards WHERE id = ?', [id]);
 }
 
 // Creates one card from `row` (a BASE_SELECT-joined row, not the mapped API
 // shape) and reschedules it, as a single transaction so a crash between the
 // two never leaves a rule pointing at a next_run_at that's already passed.
-// better-sqlite3 nests this fine (SAVEPOINT) since createCard() is itself
-// `db.transaction(...)`-wrapped.
-function runRowTxn(row) {
-  const card = createCard({
+// db.transaction() nests fine (see server/db/connection.js) since
+// createCard() is itself db.transaction(...)-wrapped.
+async function runRowTxn(row) {
+  const card = await createCard({
     listId: row.list_id,
     title: row.title,
     description: row.description ?? undefined,
@@ -194,7 +210,7 @@ function runRowTxn(row) {
   });
 
   const nextRunAt = computeNextRun(row.frequency, { dayOfWeek: row.day_of_week, dayOfMonth: row.day_of_month }, new Date());
-  db.prepare('UPDATE recurring_cards SET last_run_at = ?, next_run_at = ? WHERE id = ?').run(nowSqlite(), nextRunAt, row.id);
+  await db.run('UPDATE recurring_cards SET last_run_at = ?, next_run_at = ? WHERE id = ?', [nowSqlite(), nextRunAt, row.id]);
 
   return card;
 }
@@ -206,15 +222,23 @@ function runRow(row) {
 // Called once/tick by the scheduler in server/index.js (same shape as
 // notify.service.js's sendSlaDigest). Creates one card per active rule
 // whose next_run_at has passed, in whatever order SQLite returns them.
-export function runDueRecurring() {
-  const due = db.prepare(`${BASE_SELECT} WHERE rc.is_active = 1 AND rc.next_run_at <= ?`).all(nowSqlite());
-  return due.map((row) => ({ ruleId: row.id, card: runRow(row) }));
+// Sequential (not Promise.all) — each rule's card creation happens one at a
+// time, in query order, which is the same behavior as before this file's
+// async rewrite (better-sqlite3's fully synchronous .map() was inherently
+// sequential too).
+export async function runDueRecurring() {
+  const due = await db.all(`${BASE_SELECT} WHERE rc.is_active = 1 AND rc.next_run_at <= ?`, [nowSqlite()]);
+  const results = [];
+  for (const row of due) {
+    results.push({ ruleId: row.id, card: await runRow(row) });
+  }
+  return results;
 }
 
 // POST /:id/run-now — lets a NOC lead create this cycle's card immediately
 // instead of waiting for the scheduled time, without touching the schedule.
-export function runRecurringNow(id) {
-  const row = db.prepare(`${BASE_SELECT} WHERE rc.id = ?`).get(id);
+export async function runRecurringNow(id) {
+  const row = await db.get(`${BASE_SELECT} WHERE rc.id = ?`, [id]);
   if (!row) throw new AppError('NOT_FOUND', 'ไม่พบกฎใบงานประจำนี้', 404);
   return runRow(row);
 }

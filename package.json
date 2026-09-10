@@ -16,7 +16,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
+    "@libsql/client": "^0.18.0",
     "better-sqlite3": "13.0.3",
     "express": "^4.21.2",
     "multer": "^1.4.5-lts.1",

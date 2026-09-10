@@ -24,8 +24,8 @@ import { __setTestDb } from '../../server/db/connection.js';
 
 export function useTestDb({ seed = true } = {}) {
   let current;
-  beforeEach(() => {
-    current = createTestDb({ seed });
+  beforeEach(async () => {
+    current = await createTestDb({ seed });
     __setTestDb(current);
   });
   afterEach(() => {

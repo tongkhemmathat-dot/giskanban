@@ -34,7 +34,8 @@ export async function sendSlaDigest() {
   const to = process.env.NOTIFY_EMAIL_TO;
   if (!to) throw new Error('NOTIFY_EMAIL_TO ไม่ได้ตั้งค่า');
 
-  const cards = listCards({}).filter((c) => c.slaStatus === 'overdue' || c.slaStatus === 'at_risk');
+  const allCards = await listCards({});
+  const cards = allCards.filter((c) => c.slaStatus === 'overdue' || c.slaStatus === 'at_risk');
   const text = buildDigestText(cards);
 
   await getTransport().sendMail({

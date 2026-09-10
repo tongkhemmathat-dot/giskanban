@@ -10,7 +10,7 @@ describe('Reports API', () => {
     const res = await request(app).get('/api/reports/summary');
     expect(res.status).toBe(200);
 
-    const totalCards = getDb().prepare('SELECT COUNT(*) AS n FROM cards').get().n;
+    const totalCards = (await getDb().get('SELECT COUNT(*) AS n FROM cards', [])).n;
     expect(res.body.open).toBeGreaterThanOrEqual(0);
     expect(res.body.open).toBeLessThanOrEqual(totalCards);
     expect(res.body.doneThisWeek).toBeGreaterThanOrEqual(0);
@@ -22,7 +22,7 @@ describe('Reports API', () => {
     const res = await request(app).get('/api/reports/by-creator');
     expect(res.status).toBe(200);
 
-    const totalCards = getDb().prepare('SELECT COUNT(*) AS n FROM cards').get().n;
+    const totalCards = (await getDb().get('SELECT COUNT(*) AS n FROM cards', [])).n;
     const sum = res.body.reduce((acc, row) => acc + row.count, 0);
     expect(sum).toBe(totalCards);
   });
@@ -32,7 +32,7 @@ describe('Reports API', () => {
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThan(0);
 
-    const doneListIds = new Set(getDb().prepare('SELECT id FROM lists WHERE is_done = 1').all().map((r) => r.id));
+    const doneListIds = new Set((await getDb().all('SELECT id FROM lists WHERE is_done = 1', [])).map((r) => r.id));
     for (const card of res.body) {
       expect(doneListIds.has(card.listId)).toBe(false);
       expect(['overdue', 'at_risk']).toContain(card.slaStatus);

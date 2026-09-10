@@ -31,58 +31,56 @@ function toApiLabel(row) {
   return { id: row.id, name: row.name, color: row.color };
 }
 
-export function listLabels() {
-  return db.prepare('SELECT * FROM labels ORDER BY id').all().map(toApiLabel);
+export async function listLabels() {
+  const rows = await db.all('SELECT * FROM labels ORDER BY id', []);
+  return rows.map(toApiLabel);
 }
 
-export function listLabelsForCard(cardId) {
-  return db
-    .prepare(
-      `SELECT l.id, l.name, l.color FROM card_labels cl
-       JOIN labels l ON l.id = cl.label_id
-       WHERE cl.card_id = ? ORDER BY l.id`,
-    )
-    .all(cardId);
+export async function listLabelsForCard(cardId) {
+  return db.all(
+    `SELECT l.id, l.name, l.color FROM card_labels cl
+     JOIN labels l ON l.id = cl.label_id
+     WHERE cl.card_id = ? ORDER BY l.id`,
+    [cardId],
+  );
 }
 
-export function createLabel({ name, color }) {
-  const board = db.prepare('SELECT id FROM boards LIMIT 1').get();
-  const info = db
-    .prepare('INSERT INTO labels (board_id, name, color) VALUES (?, ?, ?)')
-    .run(board.id, name, color ?? randomColor());
-  return toApiLabel(db.prepare('SELECT * FROM labels WHERE id = ?').get(info.lastInsertRowid));
+export async function createLabel({ name, color }) {
+  const board = await db.get('SELECT id FROM boards LIMIT 1', []);
+  const info = await db.run('INSERT INTO labels (board_id, name, color) VALUES (?, ?, ?)', [board.id, name, color ?? randomColor()]);
+  return toApiLabel(await db.get('SELECT * FROM labels WHERE id = ?', [info.lastInsertRowid]));
 }
 
-export function updateLabel(id, fields) {
-  const existing = db.prepare('SELECT * FROM labels WHERE id = ?').get(id);
+export async function updateLabel(id, fields) {
+  const existing = await db.get('SELECT * FROM labels WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบป้ายกำกับนี้', 404);
 
   const next = { name: fields.name ?? existing.name, color: fields.color ?? existing.color };
-  db.prepare('UPDATE labels SET name = ?, color = ? WHERE id = ?').run(next.name, next.color, id);
+  await db.run('UPDATE labels SET name = ?, color = ? WHERE id = ?', [next.name, next.color, id]);
 
-  return toApiLabel(db.prepare('SELECT * FROM labels WHERE id = ?').get(id));
+  return toApiLabel(await db.get('SELECT * FROM labels WHERE id = ?', [id]));
 }
 
-export function deleteLabel(id) {
-  const existing = db.prepare('SELECT id FROM labels WHERE id = ?').get(id);
+export async function deleteLabel(id) {
+  const existing = await db.get('SELECT id FROM labels WHERE id = ?', [id]);
   if (!existing) throw new AppError('NOT_FOUND', 'ไม่พบป้ายกำกับนี้', 404);
-  db.prepare('DELETE FROM labels WHERE id = ?').run(id); // ON DELETE CASCADE clears card_labels rows too
+  await db.run('DELETE FROM labels WHERE id = ?', [id]); // ON DELETE CASCADE clears card_labels rows too
 }
 
-export function attachLabel(cardId, labelId) {
-  const card = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardId);
+export async function attachLabel(cardId, labelId) {
+  const card = await db.get('SELECT id FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
-  const label = db.prepare('SELECT id FROM labels WHERE id = ?').get(labelId);
+  const label = await db.get('SELECT id FROM labels WHERE id = ?', [labelId]);
   if (!label) throw new AppError('NOT_FOUND', 'ไม่พบป้ายกำกับนี้', 404);
 
-  db.prepare('INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)').run(cardId, labelId);
+  await db.run('INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)', [cardId, labelId]);
   return listLabelsForCard(cardId);
 }
 
-export function detachLabel(cardId, labelId) {
-  const card = db.prepare('SELECT id FROM cards WHERE id = ?').get(cardId);
+export async function detachLabel(cardId, labelId) {
+  const card = await db.get('SELECT id FROM cards WHERE id = ?', [cardId]);
   if (!card) throw new AppError('NOT_FOUND', 'ไม่พบใบงานนี้', 404);
 
-  db.prepare('DELETE FROM card_labels WHERE card_id = ? AND label_id = ?').run(cardId, labelId);
+  await db.run('DELETE FROM card_labels WHERE card_id = ? AND label_id = ?', [cardId, labelId]);
   return listLabelsForCard(cardId);
 }
