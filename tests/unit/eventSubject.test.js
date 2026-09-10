@@ -10,6 +10,14 @@ describe('parseEventSubject', () => {
     });
   });
 
+  it('also handles "<code> <project> : <task>" — code and name swapped', () => {
+    expect(parseEventSubject('E25-5036 DPT : Copy Data ที่เครื่อง DB DPT')).toEqual({
+      projectCode: 'E25-5036',
+      project: 'DPT',
+      task: 'Copy Data ที่เครื่อง DB DPT',
+    });
+  });
+
   it('handles a multi-word project name before the code', () => {
     expect(parseEventSubject('กรมพัฒนาที่ดิน E26-1234 : ประชุมติดตามความคืบหน้า')).toEqual({
       projectCode: 'E26-1234',
@@ -18,7 +26,23 @@ describe('parseEventSubject', () => {
     });
   });
 
-  it('falls back to task = whole subject when there is no project code', () => {
+  it('project name only, no code at all — "<project> : <task>"', () => {
+    expect(parseEventSubject('DPT : Copy Data ที่เครื่อง DB DPT')).toEqual({
+      projectCode: '',
+      project: 'DPT',
+      task: 'Copy Data ที่เครื่อง DB DPT',
+    });
+  });
+
+  it('a colon with no project-code-shaped token still splits project/task', () => {
+    expect(parseEventSubject('PTT APR Project: Biweekly update')).toEqual({
+      projectCode: '',
+      project: 'PTT APR Project',
+      task: 'Biweekly update',
+    });
+  });
+
+  it('falls back to task = whole subject when there is no colon at all', () => {
     expect(parseEventSubject('MOAC Agri-map Bi-Weekly Meeting')).toEqual({
       projectCode: '',
       project: '',
