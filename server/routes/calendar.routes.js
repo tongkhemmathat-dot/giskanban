@@ -17,6 +17,15 @@ r.get('/connections', asyncHandler(async (req, res) => {
   res.json({ items: await svc.listConnectionStatuses() });
 }));
 
+// Manual "sync now" — CALENDAR_POLL_MINUTES's setInterval (server/index.js)
+// can't run reliably on Vercel's serverless runtime (no persistent process
+// to host the timer), so this gives the calendar page a way to force a
+// re-sync of every active connection on demand instead of waiting on
+// background polling that may never actually run there.
+r.post('/sync', asyncHandler(async (req, res) => {
+  res.json(await svc.pollAllConnections());
+}));
+
 r.delete('/connections/:memberId', validate(memberIdParamSchema, 'params'), asyncHandler(async (req, res) => {
   await svc.disconnectMember(req.params.memberId);
   res.status(204).end();

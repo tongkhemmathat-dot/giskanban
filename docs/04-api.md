@@ -285,6 +285,7 @@ public HTTPS endpoint) parse ด้วย `server/utils/ics.js` แล้วแ�
 | GET | `/api/calendar/connections` | `{ items: [...] }` สถานะการเชื่อมต่อทุกคน (ไม่มีลิงก์ .ics ปนมาในนี้ — เป็น bearer secret) |
 | DELETE | `/api/calendar/connections/:memberId` | ยกเลิกการเชื่อมต่อ — `204` |
 | GET | `/api/calendar/events?start=&end=` | `{ items: [...] }` อีเวนต์รวมของทุกคนในช่วงวันที่ (`YYYY-MM-DD`) |
+| POST | `/api/calendar/sync` | ซิงก์ทุกการเชื่อมต่อที่ `active` ทันที (ปุ่ม "ซิงก์" ในหน้าปฏิทิน) — คืน `{ synced, failed }`. จำเป็นบน Vercel เพราะ `setInterval` ของ `CALENDAR_POLL_MINUTES` (`server/index.js`) รันไม่ได้จริงบน serverless (ไม่มี process ค้างให้ timer ทำงานต่อ) |
 
 Body ตอนเพิ่ม/แก้ไข (`POST /api/calendar/connections`):
 

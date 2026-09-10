@@ -186,4 +186,23 @@ describe('Calendar sync API (.ics feeds)', () => {
     expect(await getDb().all('SELECT * FROM calendar_events WHERE connection_id = ?', [connA])).toHaveLength(1);
     expect(await getDb().all('SELECT * FROM calendar_events WHERE connection_id = ?', [connB])).toHaveLength(0);
   });
+
+  it('CAL13: POST /sync re-syncs every active connection and reports counts', async () => {
+    const somchai = await memberId('สมชาย ก.');
+    await insertConnection({ member: somchai });
+    vi.stubGlobal('fetch', vi.fn(async () => icsResponse(200, icsWithEvent({ subject: 'ซิงก์ด้วยมือ' }))));
+
+    const res = await request(app).post('/api/calendar/sync');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ synced: 1, failed: 0 });
+
+    const conn = await getDb().get('SELECT * FROM calendar_connections WHERE member_id = ?', [somchai]);
+    expect(conn.last_synced_at).toBeTruthy();
+  });
+
+  it('CAL14: POST /sync with no connections returns zero counts, not an error', async () => {
+    const res = await request(app).post('/api/calendar/sync');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ synced: 0, failed: 0 });
+  });
 });

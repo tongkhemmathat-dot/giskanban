@@ -54,6 +54,7 @@ export function mountCalendar(root) {
     connections: [],
     hiddenMembers: new Set(),
     loading: true,
+    syncing: false,
   };
 
   function eventsByDay() {
@@ -144,6 +145,10 @@ export function mountCalendar(root) {
         <button type="button" data-week-today class="text-sm px-3 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">วันนี้</button>
         <span class="text-sm text-slate-600 dark:text-slate-300 w-40 text-center">${esc(fmtWeekRangeLabel(state.weekStart))}</span>
         <button type="button" data-week-next class="text-sm px-2.5 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">›</button>
+        ${state.connections.length ? `
+        <button type="button" data-sync-now ${state.syncing ? 'disabled' : ''} class="text-sm px-3 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
+          ${state.syncing ? 'กำลังซิงก์…' : '↻ ซิงก์'}
+        </button>` : ''}
       </div>
     </div>
     ${state.connections.length ? `<div class="mb-3 flex flex-wrap gap-2">${filterChipsHTML()}</div>` : ''}
@@ -180,6 +185,24 @@ export function mountCalendar(root) {
     loadWeek();
   }
 
+  // CALENDAR_POLL_MINUTES's background auto-sync (server/index.js) can't run
+  // reliably on Vercel's serverless runtime — no persistent process to host
+  // the timer — so this is the only way events actually refresh there.
+  async function syncNow() {
+    state.syncing = true;
+    render();
+    try {
+      const { synced, failed } = await api.post('/calendar/sync');
+      toast.show(failed ? `ซิงก์แล้ว ${synced} คน, ล้มเหลว ${failed} คน` : `ซิงก์ปฏิทินสำเร็จ (${synced} คน)`);
+      await loadWeek(); // loadWeek() also clears state.loading/renders
+    } catch (err) {
+      toast.show(`ซิงก์ไม่สำเร็จ: ${err.message}`);
+    } finally {
+      state.syncing = false;
+      render();
+    }
+  }
+
   function bind() {
     root.querySelector('[data-week-prev]')?.addEventListener('click', () => changeWeek(-1));
     root.querySelector('[data-week-next]')?.addEventListener('click', () => changeWeek(1));
@@ -189,6 +212,7 @@ export function mountCalendar(root) {
       render();
       loadWeek();
     });
+    root.querySelector('[data-sync-now]')?.addEventListener('click', syncNow);
 
     root.querySelectorAll('[data-member-chip]').forEach((btn) => {
       btn.addEventListener('click', () => {
