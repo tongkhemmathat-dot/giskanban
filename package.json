@@ -7,9 +7,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "nodemon server/index.js",
-    "migrate": "node server/db/migrate.js",
-    "seed": "node server/db/seed.js",
+    "dev": "nodemon --env-file=.env server/index.js",
+    "migrate": "node --env-file=.env server/db/migrate.js",
+    "seed": "node --env-file=.env server/db/seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
