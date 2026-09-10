@@ -237,7 +237,51 @@ kuma.cdg.co.th {
 `handle_path` ตัด prefix ที่ match ออกให้อัตโนมัติก่อนส่งต่อ (ต่างจาก `handle`
 ที่ส่ง path เต็มไป) — เป็นกลไกหลักที่ทำให้ข้อ 2 ด้านบนทำงาน
 
+## 4.7 Deploy ผ่าน Portainer
+
+nginx config ใน §4.6 ไม่เปลี่ยน — Portainer แค่เป็นเลเยอร์ UI คุม Docker
+daemon เดียวกัน ตัว container/port ที่ nginx proxy ไปยังเหมือนเดิมทุกอย่าง
+มีแค่ **วิธี** สั่ง `docker compose up` ที่เปลี่ยนไป:
+
+1. **Stacks → Add stack → Repository** (ไม่ใช่ "Web editor"/"Upload") —
+   ต้องใช้วิธีนี้เพราะ `app` service ใช้ `build: .` (build จาก Dockerfile
+   ในนี้เอง ไม่ใช่ pull image สำเร็จรูป) วิธี Web editor ที่แค่ paste YAML
+   จะไม่มี Dockerfile/source code ให้ build
+   - Repository URL: `https://github.com/tongkhemmathat-dot/giskanban`
+   - Branch: `main`
+   - Compose path: `docker-compose.yml` (ค่าเริ่มต้นอยู่แล้ว)
+2. **Environment variables** — ใน UI ของ stack มีช่อง "Environment variables"
+   ใส่ค่าตาม `.env.example` ทีละตัว หรือกด "Advanced mode" แล้ววาง
+   `KEY=VALUE` หลายบรรทัดพร้อมกันได้เลย (เอาเนื้อหาจาก `.env.example` มาแก้
+   ค่าจริงแล้ววาง) — **ไม่ต้อง** ใส่ `DOMAIN`/`TEAM_PASSWORD_HASH` เพราะไม่ได้
+   ใช้ `caddy` service (nginx ที่มีอยู่แล้วจัดการเรื่องนี้แทน) Portainer จะ
+   เขียนค่าพวกนี้ลงไฟล์ `.env` จริงในโฟลเดอร์ stack บน host ให้เอง ซึ่ง
+   `env_file: .env` ใน `docker-compose.yml` ก็จะอ่านไฟล์เดียวกันนี้ได้พอดี —
+   **แต่ยังไม่เคยทดสอบจริงกับ Portainer โดยตรง** ถ้า container ตั้งค่า/ต่อ DB
+   ไม่ได้หลัง deploy ให้เช็คก่อนว่า `.env` ที่ Portainer สร้างมีค่าครบจริง
+3. **Deploy the stack** — Portainer clone repo + `docker compose up -d
+   --build` ให้อัตโนมัติ (ไม่ต้องกังวลเรื่อง `--profile with-caddy` เพราะไม่ใช้
+   service นั้น)
+4. **Seed ครั้งแรก** — ไปที่ Containers → เลือก container ของ `app` (ชื่อ
+   ประมาณ `<stack-name>-app-1`) → **Console** → เลือก `/bin/sh` → Connect →
+   รัน `node server/db/seed.js`
+5. **อัปเดตเวอร์ชัน** — กลับไปหน้า stack → **Pull and redeploy** (หรือชื่อ
+   คล้ายๆ กัน แล้วแต่เวอร์ชัน Portainer — ต้องเป็นตัวเลือกที่ re-build image
+   ใหม่ ไม่ใช่แค่ pull image เดิม เพราะ service นี้ build จาก source)
+
+**สำรองข้อมูล**: Portainer ไม่มี cron ในตัว — cron ยังต้องตั้งบน host ตรงๆ
+(ต้อง SSH เข้า host ได้ นอกเหนือจากสิทธิ์ Portainer) แต่ path ของ
+`docker-compose.yml` บน host ตอนนี้อยู่ในโฟลเดอร์ที่ Portainer สร้างเอง
+(ปกติ `/data/compose/<stack-id>/`) แทนที่จะเป็น path ที่ clone เอง — เช็ค
+path จริงได้จากหน้า stack ใน Portainer เอง แล้วแก้ path ใน cron line ของ §7
+ให้ตรง หรือจะ `docker exec <ชื่อ container app>` ตรงๆ แทน `docker compose exec`
+ก็ได้เหมือนกัน (ดูชื่อ container จริงได้จาก Portainer หรือ `docker ps`)
+
 ## 5. ขั้นตอน Deploy ครั้งแรก
+
+> deploy ผ่าน Portainer ให้ดู §4.7 แทน — ขั้นตอนด้านล่างนี้คือคำสั่ง CLI ตรงๆ
+> บน host (SSH), ใช้ตอนไม่มี Portainer หรือไม่แน่ใจว่า Portainer เขียน `.env`
+> ให้ถูกจริงหรือเปล่า
 
 **มี reverse proxy อยู่แล้ว** (§4.6 — ข้าม `caddy` ในนี้ไปเลย):
 
@@ -310,6 +354,7 @@ docker compose start app
 ## 8. Checklist ก่อนขึ้น Production
 
 - [ ] `.env` ตั้งค่าครบ และ **ไม่ได้** commit ขึ้น git
+- [ ] deploy ผ่าน Portainer (§4.7): เช็คว่า container `app` เห็น env var ครบจริง (Console → `node -e "console.log(process.env.DB_PATH)"` หรือดู log ตอน start ว่า DB connect ผ่าน) — ยังไม่เคยทดสอบว่า Portainer เขียน `.env` ให้ `env_file: .env` อ่านถูกจริง
 - [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (build บนเครื่อง dev ไม่เคยทดสอบจริง — `better-sqlite3` ต้อง compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้มักเป็นเพราะขาด build tools ใน stage `deps`)
 - [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว
 - [ ] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
