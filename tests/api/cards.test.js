@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../../server/index.js';
 import { useTestDb } from '../helpers/testDb.js';
-import { calcSlaDueAt } from '../../server/utils/sla.js';
-import { toApiDateTime } from '../../server/utils/date.js';
+import { SLA_HOURS } from '../../server/utils/sla.js';
 
 // Seeded list ids (server/db/seed.js LISTS order): backlog=1, todo=2,
 // doing=3, waiting=4, review=5, done=6.
@@ -109,8 +108,11 @@ describe('Cards API', () => {
     expect(res.status).toBe(201);
     expect(res.body.code).not.toBe('JC-999999');
     expect(res.body.code).toMatch(/^JC-\d{6}$/);
-    const expectedSla = toApiDateTime(calcSlaDueAt('critical', res.body.createdAt));
-    expect(res.body.slaDueAt).toBe(expectedSla);
+    // createdAt/slaDueAt are both toApiDateTime()-shifted the same way, so
+    // their difference is timezone-shift-agnostic — this doesn't care
+    // whether the display timezone is UTC, ICT, or anything else.
+    const hoursDiff = (new Date(res.body.slaDueAt) - new Date(res.body.createdAt)) / 3_600_000;
+    expect(hoursDiff).toBeCloseTo(SLA_HOURS.critical, 1);
   });
 
   it('C8: PATCH priority low -> critical recalculates slaDueAt from the ORIGINAL created_at', async () => {
@@ -123,8 +125,10 @@ describe('Cards API', () => {
     const patched = await request(app).patch(`/api/cards/${cardId}`).send({ priority: 'critical', actorName: 'สมชาย ก.' });
     expect(patched.status).toBe(200);
     expect(patched.body.priority).toBe('critical');
-    const expected = toApiDateTime(calcSlaDueAt('critical', originalCreatedAt));
-    expect(patched.body.slaDueAt).toBe(expected);
+    // Same timezone-shift-agnostic reasoning as C7 above — recalculated from
+    // the ORIGINAL createdAt, not "now", per docs/05-business-rules.md §2 rule 2.
+    const hoursDiff = (new Date(patched.body.slaDueAt) - new Date(originalCreatedAt)) / 3_600_000;
+    expect(hoursDiff).toBeCloseTo(SLA_HOURS.critical, 1);
   });
 
   it('C9/C10: PATCH move into and out of a done column sets/clears completedAt', async () => {

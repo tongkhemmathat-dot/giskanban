@@ -12,7 +12,7 @@
 import db from '../db/connection.js';
 import { AppError } from '../utils/AppError.js';
 import { midPosition } from '../utils/position.js';
-import { toApiDateTime, nowSqlite } from '../utils/date.js';
+import { toApiDateTime, toApiDateTimeNaive, nowSqlite } from '../utils/date.js';
 import { parseAsUtc } from '../utils/sla.js';
 import { findOrCreateMemberByName } from './member.service.js';
 import { logActivity } from './activity.service.js';
@@ -46,7 +46,7 @@ function mapSubtaskRow(row) {
     assignee: row.assignee_member_id
       ? { id: row.assignee_member_id, name: row.assignee_name, color: row.assignee_color }
       : null,
-    dueDate: toApiDateTime(row.due_date),
+    dueDate: toApiDateTimeNaive(row.due_date),
     isOverdue: !!row.due_date && !row.is_done && parseAsUtc(row.due_date).getTime() < Date.now(),
     note: row.note,
     doneBy: row.done_by,

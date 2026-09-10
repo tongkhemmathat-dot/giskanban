@@ -17,7 +17,7 @@ import { nextCardCode } from '../utils/code.js';
 import { calcSlaDueAt, computeSlaStatus, shiftSlaDueAt, parseAsUtc } from '../utils/sla.js';
 import { midPosition } from '../utils/position.js';
 import { splitTitles } from '../utils/subtask.js';
-import { toApiDateTime, nowSqlite } from '../utils/date.js';
+import { toApiDateTime, toApiDateTimeNaive, nowSqlite } from '../utils/date.js';
 import { findOrCreateMemberByName } from './member.service.js';
 import { logActivity, listActivities } from './activity.service.js';
 import { getCardProgress, listSubtasksForCard } from './subtask.service.js';
@@ -82,7 +82,7 @@ async function mapCardRow(row) {
     customer: row.customer,
     deviceRef: row.device_ref,
     projectCode: row.project_code,
-    dueDate: toApiDateTime(row.due_date),
+    dueDate: toApiDateTimeNaive(row.due_date),
     slaDueAt: toApiDateTime(row.sla_due_at),
     slaStatus: computeSlaStatus({ priority: row.priority, slaDueAt: row.sla_due_at, isDone, isPaused }),
     estimatedHours: row.estimated_hours,
