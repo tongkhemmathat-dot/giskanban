@@ -193,11 +193,23 @@ function closeCreateModal() {
   document.removeEventListener('keydown', onKeydown);
 }
 
-export function openCreateModal(listId) {
+// prefill: { title, description, dueDate, assigneeNames } — optional, used
+// by calendar.view.js's "สร้างใบงาน" action on an event's detail popup so a
+// calendar event can seed a new card instead of starting blank.
+export function openCreateModal(listId, prefill = {}) {
   const root = document.getElementById('modal-root');
   const targetListId = listId ?? store.state.lists.find((l) => l.slug === 'backlog')?.id ?? store.state.lists[0]?.id;
   root.innerHTML = modalHTML();
   document.addEventListener('keydown', onKeydown);
+
+  if (prefill.title) document.getElementById('cTitle').value = prefill.title;
+  if (prefill.description) document.getElementById('cDesc').value = prefill.description;
+  if (prefill.dueDate) document.getElementById('cDue').value = prefill.dueDate;
+  if (prefill.assigneeNames?.length) {
+    document.querySelectorAll('.c-assignee').forEach((el) => {
+      if (prefill.assigneeNames.includes(el.value)) el.checked = true;
+    });
+  }
 
   // Named (not inline) so closeCreateModal() can remove exactly this listener
   // — #modal-root is a persistent node (only its innerHTML is replaced on

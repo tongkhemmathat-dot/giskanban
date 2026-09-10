@@ -2,11 +2,14 @@
 // รวมอีเวนต์ Outlook/M365 ของทุกสมาชิกที่เชื่อมต่อไว้ (server/services/
 // calendar.service.js) เป็นมุมมองรายสัปดาห์เดียวให้หัวหน้าทีมดู. เชื่อมต่อ/
 // ยกเลิกการเชื่อมต่อทำที่หน้า Members (members.view.js) — หน้านี้อ่านอย่าง
-// เดียว. ไม่แตะ store.js (เหมือน recurring.view.js) เพราะไม่มีหน้าอื่นต้อง
-// ใช้ข้อมูลปฏิทินร่วมด้วย.
+// เดียว. ไม่แตะ store.js เอง (เหมือน recurring.view.js) เพราะไม่มีหน้าอื่นต้อง
+// ใช้ข้อมูลปฏิทินร่วมด้วย — แต่เรียก openCreateModal() (create-modal.js) ได้
+// ตรงๆ เพราะ store ถูก populate ไว้ทั้งแอปตั้งแต่ app.js's boot() แล้ว
+// (ไม่ต้องรอหน้านี้โหลดเอง).
 import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { esc } from '../components/card.js';
+import { openCreateModal } from '../components/create-modal.js';
 
 const DAY_LABELS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 const MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -44,6 +47,12 @@ function fmtTimeRange(ev) {
   if (ev.isAllDay) return 'ทั้งวัน';
   const time = (s) => (s || '').slice(11, 16);
   return `${time(ev.startAt)}–${time(ev.endAt)}`;
+}
+
+function fmtEventDateTimeFull(ev) {
+  const start = new Date((ev.startAt || '').replace(' ', 'T'));
+  const dayLabel = `${DAY_LABELS[(start.getDay() + 6) % 7]} ${start.getDate()} ${MONTH_SHORT[start.getMonth()]} ${start.getFullYear()}`;
+  return ev.isAllDay ? `${dayLabel} (ทั้งวัน)` : `${dayLabel} · ${fmtTimeRange(ev)} น.`;
 }
 
 /** mountCalendar(root) -> unmount() */
@@ -97,10 +106,10 @@ export function mountCalendar(root) {
 
   function eventChipHTML(ev) {
     return `
-    <div class="text-xs rounded-md px-2 py-1 border-l-2 bg-slate-50 dark:bg-slate-900/60" style="border-color:${esc(ev.memberColor || '#94a3b8')}">
+    <button type="button" data-event-idx="${ev._idx}" class="w-full text-left text-xs rounded-md px-2 py-1 border-l-2 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800" style="border-color:${esc(ev.memberColor || '#94a3b8')}">
       <div class="font-medium text-slate-700 dark:text-slate-200 truncate" title="${esc(ev.subject)}">${esc(ev.subject)}</div>
       <div class="text-slate-400 dark:text-slate-500">${esc(fmtTimeRange(ev))} · ${esc(ev.memberName)}</div>
-    </div>`;
+    </button>`;
   }
 
   function dayColumnHTML(day, events) {
@@ -168,6 +177,7 @@ export function mountCalendar(root) {
       const [connectionsRes, eventsRes] = await Promise.all([api.get('/calendar/connections'), api.get(`/calendar/events?start=${start}&end=${end}`)]);
       state.connections = connectionsRes.items;
       state.events = eventsRes.items;
+      state.events.forEach((ev, i) => (ev._idx = i)); // stable per-render key so an event chip can look itself back up
     } catch (err) {
       toast.show(`โหลดปฏิทินไม่สำเร็จ: ${err.message}`);
       state.connections = [];
@@ -222,10 +232,81 @@ export function mountCalendar(root) {
         render();
       });
     });
+
+    root.querySelectorAll('[data-event-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const ev = state.events[Number(btn.dataset.eventIdx)];
+        if (ev) showEventDetail(ev);
+      });
+    });
+  }
+
+  // Event detail popup — separate #modal-root user from create-modal.js's
+  // own open/close, with the same pattern (own keydown/backdrop-click
+  // handlers, explicit cleanup) so the two never leak listeners into each
+  // other when "+ สร้างใบงาน" swaps one for the other in the same root.
+  let detailHandlers = null;
+
+  function closeEventDetail() {
+    if (!detailHandlers) return;
+    document.removeEventListener('keydown', detailHandlers.onKeydown);
+    document.getElementById('modal-root').removeEventListener('click', detailHandlers.onClick);
+    document.getElementById('modal-root').innerHTML = '';
+    detailHandlers = null;
+  }
+
+  function createCardFromEvent(ev) {
+    closeEventDetail();
+    openCreateModal(undefined, {
+      title: ev.subject,
+      description: ev.location ? `จากปฏิทิน — ${ev.location}` : 'จากปฏิทิน',
+      dueDate: ev.isAllDay ? undefined : ev.startAt,
+      assigneeNames: [ev.memberName],
+    });
+  }
+
+  function showEventDetail(ev) {
+    const modalRoot = document.getElementById('modal-root');
+    modalRoot.innerHTML = `
+    <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-40 p-4" data-close-on-backdrop>
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm p-5">
+        <div class="flex items-start justify-between gap-2 mb-3">
+          <h3 class="text-base font-semibold dark:text-slate-100 break-words">${esc(ev.subject)}</h3>
+          <button type="button" data-close-modal class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg leading-none shrink-0" aria-label="ปิด">✕</button>
+        </div>
+        <div class="space-y-1.5 text-sm text-slate-600 dark:text-slate-300">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${esc(ev.memberColor || '#94a3b8')}"></span>${esc(ev.memberName)}
+          </div>
+          <div>🕐 ${esc(fmtEventDateTimeFull(ev))}</div>
+          ${ev.location ? `<div>📍 ${esc(ev.location)}</div>` : ''}
+        </div>
+        <div class="flex justify-end gap-2 pt-4 mt-3 border-t border-slate-100 dark:border-slate-700">
+          <button type="button" data-close-modal class="text-sm px-3 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">ปิด</button>
+          <button type="button" data-create-from-event class="text-sm px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">+ สร้างใบงาน</button>
+        </div>
+      </div>
+    </div>`;
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') closeEventDetail();
+    };
+    const onClick = (e) => {
+      if (e.target.hasAttribute('data-close-on-backdrop') || e.target.closest('[data-close-modal]')) {
+        closeEventDetail();
+      } else if (e.target.closest('[data-create-from-event]')) {
+        createCardFromEvent(ev);
+      }
+    };
+    document.addEventListener('keydown', onKeydown);
+    modalRoot.addEventListener('click', onClick);
+    detailHandlers = { onKeydown, onClick };
   }
 
   render(); // shows the loading state immediately
   loadWeek();
 
-  return function unmount() {};
+  return function unmount() {
+    closeEventDetail();
+  };
 }
