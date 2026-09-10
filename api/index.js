@@ -76,6 +76,12 @@ app.response.end = function patchedEnd(...args) {
   if (!MUTATING_METHODS.has(this.req.method) || this.statusCode >= 400) {
     return originalResEnd.apply(this, args);
   }
+  // connection.js opens the DB with `journal_mode = WAL` — recent writes sit
+  // in a separate `-wal` file and never reach the main .db file until a
+  // checkpoint runs, so snapshotting the main file alone would silently
+  // upload stale (often near-empty) data. TRUNCATE checkpoints everything
+  // into the main file and empties the -wal file, so one file is enough.
+  db.pragma('wal_checkpoint(TRUNCATE)');
   readFile(process.env.DB_PATH)
     .then((buf) => put(DB_SNAPSHOT_PATHNAME, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true }))
     .catch((err) => console.error('บันทึก snapshot ฐานข้อมูลไป Blob ไม่สำเร็จ:', err.message))
