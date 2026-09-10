@@ -224,13 +224,27 @@ describe('Calendar sync API (.ics feeds)', () => {
     expect(res.text.charCodeAt(0)).toBe(0xfeff); // BOM
 
     const lines = res.text.slice(1).split('\r\n');
-    expect(lines[0]).toBe('สมาชิก,หัวข้อ,วันที่,เวลาเริ่ม,เวลาสิ้นสุด,ทั้งวัน,สถานที่');
+    expect(lines[0]).toBe('สมาชิก,รหัสโครงการ,โครงการ,เนื้องาน,วันที่,เวลาเริ่ม,เวลาสิ้นสุด,ทั้งวัน,สถานที่');
     // grouped by member (ณัฐพล ว. sorts before สมชาย ก. in Thai collation), not by start time
     expect(lines[1]).toContain('งานของณัฐพล');
     expect(lines[2]).toContain('งานของสมชาย');
   });
 
-  it('CAL16: GET /events/export with a malformed date -> 400 VALIDATION_ERROR', async () => {
+  it('CAL16: GET /events/export splits a "<project> <code> : <task>" subject into separate columns', async () => {
+    const somchai = await memberId('สมชาย ก.');
+    const connA = await insertConnection({ member: somchai });
+    await getDb().run(
+      `INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at) VALUES (?, ?, 'e1', ?, '2026-09-10 08:00:00', '2026-09-10 09:00:00')`,
+      [connA, somchai, 'DPT E25-5036 : Copy Data ที่เครื่อง DB DPT'],
+    );
+
+    const res = await request(app).get('/api/calendar/events/export').query({ start: '2026-09-08', end: '2026-09-14' });
+    const dataLine = res.text.slice(1).split('\r\n')[1];
+    // start_at/end_at above are stored UTC; toApiDateTime() shifts +7 (Asia/Bangkok) for display.
+    expect(dataLine).toBe('สมชาย ก.,E25-5036,DPT,Copy Data ที่เครื่อง DB DPT,2026-09-10,15:00,16:00,,');
+  });
+
+  it('CAL17: GET /events/export with a malformed date -> 400 VALIDATION_ERROR', async () => {
     const res = await request(app).get('/api/calendar/events/export').query({ start: 'not-a-date', end: '2026-09-14' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');

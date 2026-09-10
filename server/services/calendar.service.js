@@ -12,6 +12,7 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 import { nowSqlite, toApiDateTime } from '../utils/date.js';
 import { parseIcsEvents } from '../utils/ics.js';
 import { buildCsv } from '../utils/csv.js';
+import { parseEventSubject } from '../utils/eventSubject.js';
 
 const WINDOW_BEFORE_DAYS = 1; // absorbs ICT-vs-UTC "today" boundary edge cases
 const WINDOW_AFTER_DAYS = 14; // "team lead planning the next two weeks" horizon
@@ -213,25 +214,33 @@ export async function getMergedEvents(startDate, endDate) {
   }));
 }
 
-const EXPORT_CSV_HEADERS = ['สมาชิก', 'หัวข้อ', 'วันที่', 'เวลาเริ่ม', 'เวลาสิ้นสุด', 'ทั้งวัน', 'สถานที่'];
+const EXPORT_CSV_HEADERS = ['สมาชิก', 'รหัสโครงการ', 'โครงการ', 'เนื้องาน', 'วันที่', 'เวลาเริ่ม', 'เวลาสิ้นสุด', 'ทั้งวัน', 'สถานที่'];
 
 // รายงานงานของแต่ละคนจากปฏิทิน (บางงานเป็นการประชุม ไม่ได้ทำเป็นใบงานในระบบ —
 // หัวหน้าต้องการเห็นภาพรวมทั้งหมด ไม่ใช่แค่ที่กลายเป็นใบงานแล้ว). เรียงตาม
 // สมาชิกก่อน แล้วค่อยเรียงตามเวลาเริ่ม ภายในคนเดียวกัน — ตรงข้ามกับ
-// getMergedEvents ที่เรียงตามเวลาอย่างเดียว (สำหรับมุมมองปฏิทินรวม).
+// getMergedEvents ที่เรียงตามเวลาอย่างเดียว (สำหรับมุมมองปฏิทินรวม). หัวข้อ
+// อีเวนต์ถูกแยกเป็นรหัสโครงการ/โครงการ/เนื้องาน ผ่าน parseEventSubject() —
+// อีเวนต์ที่ subject ไม่ตรงรูปแบบ (ส่วนใหญ่ของการประชุมทั่วไป) จะได้แค่
+// เนื้องาน = subject เดิมทั้งหมด รหัสโครงการ/โครงการ เว้นว่างไว้.
 export async function exportEventsCsv(startDate, endDate) {
   const events = await getMergedEvents(startDate, endDate);
   events.sort((a, b) => a.memberName.localeCompare(b.memberName, 'th') || (a.startAt || '').localeCompare(b.startAt || ''));
 
-  const rows = events.map((e) => [
-    e.memberName,
-    e.subject,
-    (e.startAt || '').slice(0, 10),
-    e.isAllDay ? '' : (e.startAt || '').slice(11, 16),
-    e.isAllDay ? '' : (e.endAt || '').slice(11, 16),
-    e.isAllDay ? 'ใช่' : '',
-    e.location ?? '',
-  ]);
+  const rows = events.map((e) => {
+    const { projectCode, project, task } = parseEventSubject(e.subject);
+    return [
+      e.memberName,
+      projectCode,
+      project,
+      task,
+      (e.startAt || '').slice(0, 10),
+      e.isAllDay ? '' : (e.startAt || '').slice(11, 16),
+      e.isAllDay ? '' : (e.endAt || '').slice(11, 16),
+      e.isAllDay ? 'ใช่' : '',
+      e.location ?? '',
+    ];
+  });
 
   return '﻿' + buildCsv(EXPORT_CSV_HEADERS, rows); // UTF-8 BOM so Excel auto-detects the encoding for Thai text
 }
