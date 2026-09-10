@@ -3,6 +3,11 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "127.0.0.1:3000:3000" # loopback only, never 0.0.0.0 — the reverse
+      # proxy in front of this (the bundled `caddy` below, or your own
+      # existing one — see docs/09-deployment.md §4.6) is the only thing
+      # that should ever reach the app directly.
     volumes:
       - ./data:/app/data
       - ./backups:/backup
@@ -16,9 +21,14 @@ services:
       # fetch, so Docker actually sees the container as unhealthy instead of
       # always passing regardless of DB state.
 
+  # Optional — only started with `docker compose --profile with-caddy up`.
+  # Skip this entirely (plain `docker compose up` never starts it) if this
+  # host already runs its own reverse proxy for the domain; point that at
+  # 127.0.0.1:3000 instead (docs/09-deployment.md §4.6).
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    profiles: ["with-caddy"]
     ports: ["80:80","443:443"]
     env_file: .env
     volumes:

@@ -74,6 +74,10 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "127.0.0.1:3000:3000" # loopback only, ไม่ใช่ 0.0.0.0 — เฉพาะ reverse
+      # proxy หน้าแอป (caddy ด้านล่าง หรือ proxy เดิมที่มีอยู่แล้ว — ดู §4.6)
+      # เท่านั้นที่ควรเข้าถึง app ได้โดยตรง
     volumes:
       - ./data:/app/data
       - ./backups:/backup
@@ -86,9 +90,14 @@ services:
       # wget ถือว่า non-2xx = fetch ล้มเหลว จึงทำให้ Docker เห็นว่า container
       # ไม่ healthy จริง ๆ ไม่ใช่แค่ตอบ 200 เฉย ๆ ไม่ว่า DB จะพังหรือไม่
 
+  # ไม่บังคับ — start ก็ต่อเมื่อรัน `docker compose --profile with-caddy up`
+  # เท่านั้น (`docker compose up` เฉยๆ จะไม่ดึง service นี้ขึ้นมาเลย) ถ้า host
+  # นี้มี reverse proxy ของตัวเองอยู่แล้ว ข้าม service นี้ไปได้เลย แล้วชี้
+  # proxy เดิมไปที่ 127.0.0.1:3000 แทน (§4.6)
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    profiles: ["with-caddy"]
     ports: ["80:80","443:443"]
     env_file: .env
     volumes:
@@ -152,13 +161,82 @@ docker run --rm caddy caddy hash-password --plaintext 'รหัสของท�
 > (recurring) จะแสดงผลถูกต้องเฉพาะรูปแบบทั่วไป (รายวัน/รายสัปดาห์/รายเดือน
 > แบบง่าย) ดู `server/utils/ics.js`'s module comment สำหรับขอบเขตที่รองรับ
 
+## 4.6 มี reverse proxy ของตัวเองอยู่แล้ว (deploy เป็น subpath เช่น `/jobcard`)
+
+ถ้า host นี้มี reverse proxy อยู่แล้ว (เช่น domain นี้ใช้รันอย่างอื่นอยู่ที่
+root และจะเพิ่ม JobCard Pro เป็น subpath) **ไม่ต้อง** รัน service `caddy`
+ในนี้เลย (ข้ามไป ไม่ต้องใส่ `--profile with-caddy`) — `app` bind
+`127.0.0.1:3000` ไว้ให้แล้ว แค่ชี้ proxy เดิมมาที่นี่
+
+ฝั่งแอปไม่ต้องรู้จัก subpath เลย — `public/js/api.js`'s `BASE_URL` คำนวณจาก
+URL ของหน้าเว็บเองเสมอ (`new URL('api', document.baseURI).pathname`) และ
+asset อื่นๆ (`css/app.css`, `js/app.js`) เป็น relative path อยู่แล้ว ทุก
+route ฝั่ง Express (`/api/...`, static files) ก็ยังลงทะเบียนที่ root ปกติ —
+**หน้าที่ proxy คือต้องตัด prefix `/jobcard` ออกก่อนส่งต่อไป app** (ไม่ใช่ส่ง
+`/jobcard/api/health` ตรงๆ ไปที่ app ซึ่งไม่รู้จัก path นี้)
+
+สามสิ่งที่ config ฝั่ง proxy ต้องทำให้ครบ:
+1. **redirect `/jobcard` (ไม่มี `/` ท้าย) → `/jobcard/`** — ถ้าไม่มีขั้นตอนนี้
+   relative path ฝั่ง browser จะ resolve ผิด (ตัด `/jobcard` หายไปเลย)
+2. **ตัด `/jobcard` prefix ออกก่อน proxy ไป `127.0.0.1:3000`**
+3. **บังคับ auth** (basic auth หรือ IP allowlist) บน path นี้ — แอปไม่มีระบบ
+   login เอง (กติกาข้อ 1 ใน `CLAUDE.md`) ต้องพึ่ง proxy ชั้นนี้เท่านั้น
+
+ตัวอย่าง — **Caddy** (ถ้า proxy เดิมเป็น Caddy อยู่แล้ว, เพิ่มเข้าไปใน block เดิมของ `kuma.cdg.co.th`):
+
+```caddyfile
+kuma.cdg.co.th {
+    # ... config เดิมของ Uptime Kuma หรืออย่างอื่นที่ root ...
+
+    redir /jobcard /jobcard/ permanent
+
+    handle_path /jobcard/* {
+        basic_auth {
+            team {$TEAM_PASSWORD_HASH}
+        }
+        reverse_proxy 127.0.0.1:3000
+    }
+}
+```
+
+`handle_path` ตัด prefix ที่ match ออกให้อัตโนมัติก่อนส่งต่อ (ต่างจาก `handle`
+ที่ส่ง path เต็มไป) — เป็นกลไกหลักที่ทำให้ข้อ 2 ด้านบนทำงาน
+
+ตัวอย่าง — **nginx**:
+
+```nginx
+location = /jobcard { return 301 /jobcard/; }
+
+location /jobcard/ {
+    auth_basic "JobCard Pro";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    rewrite ^/jobcard/(.*)$ /$1 break;
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+}
+```
+
 ## 5. ขั้นตอน Deploy ครั้งแรก
+
+**มี reverse proxy อยู่แล้ว** (§4.6 — ข้าม `caddy` ในนี้ไปเลย):
+
+```bash
+git clone <repo> && cd jobcard-pro
+cp .env.example .env && nano .env      # ตั้งค่าตาม §1 (ไม่ต้องมี DOMAIN/TEAM_PASSWORD_HASH ก็ได้ — ใช้ของ proxy เดิมแทน)
+mkdir -p backups && chown 1001:1001 backups   # container รันเป็น uid 1001 (app) ไม่ใช่ root — ต้อง own ไดเรกทอรีนี้เองก่อนถึงจะ backup ได้
+docker compose up -d --build           # ไม่ต้องใส่ --profile with-caddy — สตาร์ทแค่ app, bind 127.0.0.1:3000
+docker compose exec app node server/db/seed.js   # ครั้งแรกเท่านั้น
+docker compose logs -f app
+```
+
+**ให้ Caddy ที่ bundle มาด้วยเป็นหน้าด่านเอง** (ไม่มี proxy อื่นอยู่บน host):
 
 ```bash
 git clone <repo> && cd jobcard-pro
 cp .env.example .env && nano .env      # ใส่ DOMAIN + TEAM_PASSWORD_HASH
 mkdir -p backups && chown 1001:1001 backups   # container รันเป็น uid 1001 (app) ไม่ใช่ root — ต้อง own ไดเรกทอรีนี้เองก่อนถึงจะ backup ได้
-docker compose up -d --build
+docker compose --profile with-caddy up -d --build
 docker compose exec app node server/db/seed.js   # ครั้งแรกเท่านั้น
 docker compose logs -f app
 ```
@@ -169,6 +247,12 @@ docker compose logs -f app
 git pull
 docker compose up -d --build           # migrate รันอัตโนมัติตอน start
 ```
+
+> ใช้ `--profile with-caddy` ตอน deploy ครั้งแรกไว้ ต้องใส่ทุกครั้งที่รัน
+> `docker compose up`/`down` ต่อจากนี้ด้วย (Compose ไม่จำ flag นี้ข้ามคำสั่ง)
+> ไม่งั้น service `caddy` จะไม่ถูกเอ่ยถึงเลยและอาจโดนสั่งหยุดโดยไม่ตั้งใจ —
+> ถ้าไม่อยากพิมพ์ทุกครั้ง ตั้ง `export COMPOSE_PROFILES=with-caddy` ไว้ใน
+> shell profile ของเครื่อง host แทนได้
 
 ## 7. สำรองข้อมูล
 
@@ -209,6 +293,7 @@ docker compose start app
 - [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (build บนเครื่อง dev ไม่เคยทดสอบจริง — `better-sqlite3` ต้อง compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้มักเป็นเพราะขาด build tools ใน stage `deps`)
 - [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว
 - [ ] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
+- [ ] deploy แบบ subpath (§4.6): ทดสอบเข้า URL แบบ**ไม่มี** `/` ท้าย (เช่น `/jobcard`) แล้ว redirect ไป `/jobcard/` ถูกต้อง, static asset (`js/app.js` เป็นต้น) โหลดผ่าน ไม่ใช่ 404, และ API call ไม่หลุดไป path ที่ผิด (เปิด DevTools → Network ดู request ไป `/jobcard/api/...`)
 - [ ] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง
 - [ ] healthcheck ตอบ 200
 - [ ] แจ้งทีมว่า **ไม่มีระบบล็อกอิน** — ใครมี URL ก็เข้าได้
