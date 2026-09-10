@@ -202,6 +202,18 @@ function quickFilterBarHTML() {
   }).join('');
 }
 
+// เดิมอยู่ใน header กลาง (ทุกหน้า) ย้ายมาไว้ที่นี่เพราะมีแค่บอร์ดที่ใช้จริง —
+// คำนวณ href ใหม่ทุกครั้งที่ toolbarHTML() render (เช่นเดียวกับ
+// calendar.view.js's exportUrl()) จาก store.state.searchQuery ตรงๆ แทนที่จะ
+// อาศัย id-based DOM lookup แบบเดิมใน app.js, เพราะ mountBoard() ก็ subscribe
+// แล้ว re-render ทั้งบอร์ดทุกครั้งที่ store เปลี่ยนอยู่แล้ว (รวมถึงตอนค้นหา)
+// — GET /api/cards/export รับ filter อื่นจาก listCardsQuerySchema ได้อีกด้วย
+// แต่ตอนนี้มีแค่ q (ช่องค้นหา) ที่มี UI จริง.
+function exportCsvUrl() {
+  const q = store.state.searchQuery;
+  return q ? `/api/cards/export?q=${encodeURIComponent(q)}` : '/api/cards/export';
+}
+
 function toolbarHTML() {
   if (!selectMode) {
     return `
@@ -209,6 +221,7 @@ function toolbarHTML() {
       <button type="button" data-enter-select class="text-xs border border-slate-300 dark:border-slate-600 dark:text-slate-200 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700">☑️ เลือกหลายใบ</button>
       <span class="w-px h-4 bg-slate-300 dark:bg-slate-600 mx-1"></span>
       ${quickFilterBarHTML()}
+      <a href="${exportCsvUrl()}" class="text-xs border border-slate-300 dark:border-slate-600 rounded-md px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-200 ml-auto" aria-label="ส่งออก CSV">📥 Export CSV</a>
     </div>`;
   }
   const listOptions = store.state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('');

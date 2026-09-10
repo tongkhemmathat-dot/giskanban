@@ -109,7 +109,6 @@ function bindShellEvents() {
     const value = this.value;
     searchDebounce = setTimeout(() => {
       store.setSearchQuery(value);
-      updateExportCsvLink(value);
     }, 250);
   });
 
@@ -145,17 +144,6 @@ function updateTextSizeToggleState() {
   btn.classList.toggle('bg-indigo-600', large);
   btn.classList.toggle('text-white', large);
   btn.classList.toggle('border-indigo-600', large);
-}
-
-// Keeps the "📥 Export CSV" link's target in sync with the current search,
-// so exporting after searching the board exports exactly the filtered set
-// visible on screen (docs/06-ui-spec.md §1's single search box is the only
-// filter this app's UI exposes — GET /api/cards/export accepts the rest of
-// listCardsQuerySchema's filters too, just none of them have UI here yet).
-function updateExportCsvLink(query) {
-  const link = document.getElementById('exportCsvLink');
-  if (!link) return;
-  link.href = query ? `/api/cards/export?q=${encodeURIComponent(query)}` : '/api/cards/export';
 }
 
 async function boot() {
