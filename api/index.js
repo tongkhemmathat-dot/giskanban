@@ -61,20 +61,25 @@ if (!restoredFromSnapshot) {
 
 const { default: app } = await import('../server/index.js');
 
-// Delay the response to any mutating request until the DB file is snapshotted
-// to Blob, so the instance is never allowed to freeze/recycle before the
-// write is durable. Read-only requests pass through untouched.
-app.use((req, res, next) => {
-  if (!MUTATING_METHODS.has(req.method)) return next();
-  const originalEnd = res.end.bind(res);
-  res.end = (...args) => {
-    if (res.statusCode >= 400) return originalEnd(...args);
-    readFile(process.env.DB_PATH)
-      .then((buf) => put(DB_SNAPSHOT_PATHNAME, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true }))
-      .catch((err) => console.error('บันทึก snapshot ฐานข้อมูลไป Blob ไม่สำเร็จ:', err.message))
-      .finally(() => originalEnd(...args));
-  };
-  next();
-});
+// Delay the response to any mutating request until the DB file is
+// snapshotted to Blob, so the instance is never allowed to freeze/recycle
+// before the write is durable. Patched on `app.response` (Express's
+// per-app response prototype — every `res` is `Object.create(app.response)`)
+// rather than added as `app.use(...)` middleware: this file only gets `app`
+// back already fully built with all its routes attached, and an `app.use()`
+// registered this late in server/index.js's already-built middleware stack
+// never runs for any request a route handler already answered without
+// calling next(). Patching the prototype runs for every response regardless
+// of route order.
+const originalResEnd = app.response.end;
+app.response.end = function patchedEnd(...args) {
+  if (!MUTATING_METHODS.has(this.req.method) || this.statusCode >= 400) {
+    return originalResEnd.apply(this, args);
+  }
+  readFile(process.env.DB_PATH)
+    .then((buf) => put(DB_SNAPSHOT_PATHNAME, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true }))
+    .catch((err) => console.error('บันทึก snapshot ฐานข้อมูลไป Blob ไม่สำเร็จ:', err.message))
+    .finally(() => originalResEnd.apply(this, args));
+};
 
 export default app;
