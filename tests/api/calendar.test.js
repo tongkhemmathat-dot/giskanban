@@ -205,4 +205,34 @@ describe('Calendar sync API (.ics feeds)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ synced: 0, failed: 0 });
   });
+
+  it('CAL15: GET /events/export returns a CSV sorted by member, with a BOM prefix', async () => {
+    const somchai = await memberId('สมชาย ก.');
+    const natthaphon = await memberId('ณัฐพล ว.');
+    const connA = await insertConnection({ member: somchai });
+    const connB = await insertConnection({ member: natthaphon });
+
+    const insertEvent = (...args) =>
+      getDb().run(`INSERT INTO calendar_events (connection_id, member_id, event_uid, subject, start_at, end_at) VALUES (?, ?, ?, ?, ?, ?)`, args);
+    await insertEvent(connB, natthaphon, 'e1', 'งานของณัฐพล', '2026-09-10 09:00:00', '2026-09-10 10:00:00');
+    await insertEvent(connA, somchai, 'e2', 'งานของสมชาย', '2026-09-10 08:00:00', '2026-09-10 09:00:00');
+
+    const res = await request(app).get('/api/calendar/events/export').query({ start: '2026-09-08', end: '2026-09-14' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/^text\/csv/);
+    expect(res.headers['content-disposition']).toMatch(/attachment/);
+    expect(res.text.charCodeAt(0)).toBe(0xfeff); // BOM
+
+    const lines = res.text.slice(1).split('\r\n');
+    expect(lines[0]).toBe('สมาชิก,หัวข้อ,วันที่,เวลาเริ่ม,เวลาสิ้นสุด,ทั้งวัน,สถานที่');
+    // grouped by member (ณัฐพล ว. sorts before สมชาย ก. in Thai collation), not by start time
+    expect(lines[1]).toContain('งานของณัฐพล');
+    expect(lines[2]).toContain('งานของสมชาย');
+  });
+
+  it('CAL16: GET /events/export with a malformed date -> 400 VALIDATION_ERROR', async () => {
+    const res = await request(app).get('/api/calendar/events/export').query({ start: 'not-a-date', end: '2026-09-14' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

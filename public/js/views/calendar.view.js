@@ -66,6 +66,15 @@ export function mountCalendar(root) {
     syncing: false,
   };
 
+  // รายงาน CSV ของสัปดาห์ที่กำลังดูอยู่ (ช่วงเดียวกับที่ loadWeek() ดึงมาแสดง)
+  // — หัวหน้าทีมขอรายงานงานของแต่ละคนจากปฏิทิน เพราะบางงานเป็นการประชุมที่
+  // ไม่ได้สร้างเป็นใบงานในระบบ.
+  function exportUrl() {
+    const start = fmtISODate(state.weekStart);
+    const end = fmtISODate(addDays(state.weekStart, 6));
+    return `/api/calendar/events/export?start=${start}&end=${end}`;
+  }
+
   function eventsByDay() {
     const byDay = new Map();
     for (const d of Array.from({ length: 7 }, (_, i) => addDays(state.weekStart, i))) {
@@ -157,7 +166,8 @@ export function mountCalendar(root) {
         ${state.connections.length ? `
         <button type="button" data-sync-now ${state.syncing ? 'disabled' : ''} class="text-sm px-3 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
           ${state.syncing ? 'กำลังซิงก์…' : '↻ ซิงก์'}
-        </button>` : ''}
+        </button>
+        <a href="${exportUrl()}" class="text-sm border border-slate-300 dark:border-slate-600 rounded-md px-3 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-200" aria-label="ส่งออก CSV">📥 Export CSV</a>` : ''}
       </div>
     </div>
     ${state.connections.length ? `<div class="mb-3 flex flex-wrap gap-2">${filterChipsHTML()}</div>` : ''}

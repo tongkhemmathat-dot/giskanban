@@ -286,6 +286,7 @@ public HTTPS endpoint) parse ด้วย `server/utils/ics.js` แล้วแ�
 | DELETE | `/api/calendar/connections/:memberId` | ยกเลิกการเชื่อมต่อ — `204` |
 | GET | `/api/calendar/events?start=&end=` | `{ items: [...] }` อีเวนต์รวมของทุกคนในช่วงวันที่ (`YYYY-MM-DD`) |
 | POST | `/api/calendar/sync` | ซิงก์ทุกการเชื่อมต่อที่ `active` ทันที (ปุ่ม "ซิงก์" ในหน้าปฏิทิน) — คืน `{ synced, failed }`. จำเป็นบน Vercel เพราะ `setInterval` ของ `CALENDAR_POLL_MINUTES` (`server/index.js`) รันไม่ได้จริงบน serverless (ไม่มี process ค้างให้ timer ทำงานต่อ) |
+| GET | `/api/calendar/events/export?start=&end=` | CSV รายงานปฏิทินของแต่ละคนในช่วงวันที่ (`YYYY-MM-DD`) — คอลัมน์ `สมาชิก,หัวข้อ,วันที่,เวลาเริ่ม,เวลาสิ้นสุด,ทั้งวัน,สถานที่` เรียงตามสมาชิกก่อนแล้วค่อยตามเวลาเริ่ม (ต่างจาก `/events` ที่เรียงตามเวลาอย่างเดียว) — ปุ่ม "📥 Export CSV" ในหน้าปฏิทิน ส่งออกเฉพาะสัปดาห์ที่กำลังดูอยู่ ใช้สำหรับดูงาน/การประชุมของแต่ละคนที่ไม่ได้สร้างเป็นใบงานในระบบ |
 
 Body ตอนเพิ่ม/แก้ไข (`POST /api/calendar/connections`):
 

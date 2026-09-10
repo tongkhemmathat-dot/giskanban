@@ -35,4 +35,15 @@ r.get('/events', validate(eventsRangeQuerySchema, 'query'), asyncHandler(async (
   res.json({ items: await svc.getMergedEvents(req.query.start, req.query.end) });
 }));
 
+// รายงานปฏิทินของแต่ละคนเป็น CSV (หัวหน้าทีมขอ — บางงานเป็นการประชุม ไม่ได้
+// สร้างเป็นใบงานในระบบ จึงต้องดูจากปฏิทินโดยตรง). Registered after '/events'
+// but no ordering conflict either way — there's no ':param' segment here for
+// 'export' to be mistaken for, unlike cards.routes.js's '/cards/export'
+// vs '/cards/:id'.
+r.get('/events/export', validate(eventsRangeQuerySchema, 'query'), asyncHandler(async (req, res) => {
+  const csv = await svc.exportEventsCsv(req.query.start, req.query.end);
+  res.attachment(`calendar-export-${req.query.start}_${req.query.end}.csv`);
+  res.type('text/csv; charset=utf-8').send(csv);
+}));
+
 export default r;
