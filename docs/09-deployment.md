@@ -182,7 +182,42 @@ route ฝั่ง Express (`/api/...`, static files) ก็ยังลงท�
 3. **บังคับ auth** (basic auth หรือ IP allowlist) บน path นี้ — แอปไม่มีระบบ
    login เอง (กติกาข้อ 1 ใน `CLAUDE.md`) ต้องพึ่ง proxy ชั้นนี้เท่านั้น
 
-ตัวอย่าง — **Caddy** (ถ้า proxy เดิมเป็น Caddy อยู่แล้ว, เพิ่มเข้าไปใน block เดิมของ `kuma.cdg.co.th`):
+### nginx (`kuma.cdg.co.th` server block ที่มีอยู่แล้ว — เพิ่ม 2 `location` นี้เข้าไป)
+
+```nginx
+# ครั้งเดียว ก่อน reload: สร้างไฟล์รหัสผ่าน (ผู้ใช้ "team", ตั้ง prompt รหัสผ่าน)
+# htpasswd -c /etc/nginx/.htpasswd team
+
+server {
+    # ... listen/ssl/config เดิมของ kuma.cdg.co.th (Uptime Kuma ที่ root ฯลฯ) ...
+
+    client_max_body_size 10m;   # เท่ากับ MAX_UPLOAD_MB ใน .env (ดีฟอลต์ 10) —
+                                 # nginx ดีฟอลต์ 1m เอง จะบล็อกไฟล์แนบก่อนถึงแอปด้วยซ้ำ
+
+    location = /jobcard { return 301 /jobcard/; }
+
+    location /jobcard/ {
+        auth_basic "JobCard Pro";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+        rewrite ^/jobcard/(.*)$ /$1 break;   # ตัด prefix /jobcard ออกก่อนส่งต่อ — app ไม่รู้จัก path นี้เลย
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+`client_max_body_size` วางไว้ระดับ `server{}` (หรือ `http{}` ถ้าใช้ทั้งเครื่อง)
+ไม่ใช่ใน `location /jobcard/` เฉยๆ — nginx เช็คขนาด body ก่อนเลือก location
+ด้วยซ้ำในบางเวอร์ชัน ปลอดภัยกว่าถ้าตั้งกว้างแบบนี้
+
+ทดสอบ config ก่อน reload จริงเสมอ: `nginx -t` แล้วค่อย `systemctl reload nginx`
+(หรือ `nginx -s reload`)
+
+### Caddy (ถ้าวันหลังเปลี่ยนมาใช้ Caddy แทน หรือมีอีก service ที่ใช้ Caddy อยู่)
 
 ```caddyfile
 kuma.cdg.co.th {
@@ -201,21 +236,6 @@ kuma.cdg.co.th {
 
 `handle_path` ตัด prefix ที่ match ออกให้อัตโนมัติก่อนส่งต่อ (ต่างจาก `handle`
 ที่ส่ง path เต็มไป) — เป็นกลไกหลักที่ทำให้ข้อ 2 ด้านบนทำงาน
-
-ตัวอย่าง — **nginx**:
-
-```nginx
-location = /jobcard { return 301 /jobcard/; }
-
-location /jobcard/ {
-    auth_basic "JobCard Pro";
-    auth_basic_user_file /etc/nginx/.htpasswd;
-
-    rewrite ^/jobcard/(.*)$ /$1 break;
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-}
-```
 
 ## 5. ขั้นตอน Deploy ครั้งแรก
 
