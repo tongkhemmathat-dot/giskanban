@@ -5,6 +5,7 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+      - ./backups:/backup
     healthcheck:
       test: ["CMD","wget","-qO-","http://localhost:3000/api/health"]
       interval: 30s

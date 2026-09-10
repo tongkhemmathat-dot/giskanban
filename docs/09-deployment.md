@@ -54,8 +54,17 @@ RUN mkdir -p data/uploads && chown -R app:app data
 USER app
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini","--"]
-CMD ["sh","-c","npm run migrate && node server/index.js"]
+CMD ["sh","-c","node server/db/migrate.js && node server/index.js"]
 ```
+
+> ใช้ `node` ตรงๆ ไม่ใช่ `npm run migrate`/`npm run dev` — สคริปต์พวกนั้นมี
+> `--env-file=.env` (ใส่ไว้ให้สะดวกตอนรัน `node`/`npm` ตรงๆ บนเครื่อง dev โดย
+> ไม่ผ่าน Docker) แต่ container นี้ไม่มีไฟล์ `.env` จริงอยู่บนดิสก์เลย —
+> `docker-compose.yml`'s `env_file: .env` ฉีดค่าพวกนั้นเป็น env var จริงตอน
+> `docker compose up` ไม่ได้ copy ไฟล์เข้าไป ถ้าใช้ `--env-file` ในนี้จะ
+> พังตอน container หาไฟล์ไม่เจอ หรือแย่กว่านั้นคือ "ใช้ได้" แค่เพราะ `.env`
+> หลุดเข้าไปอยู่ใน image layer จริงๆ (ไม่ควรเกิดขึ้นเด็ดขาด — ดู `.dockerignore`
+> ที่กัน `.env*` ไว้แล้ว)
 
 ## 3. `docker-compose.yml`
 
@@ -67,6 +76,7 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+      - ./backups:/backup
     healthcheck:
       test: ["CMD","wget","-qO-","http://localhost:3000/api/health"]
       interval: 30s
@@ -147,8 +157,9 @@ docker run --rm caddy caddy hash-password --plaintext 'รหัสของท�
 ```bash
 git clone <repo> && cd jobcard-pro
 cp .env.example .env && nano .env      # ใส่ DOMAIN + TEAM_PASSWORD_HASH
+mkdir -p backups && chown 1001:1001 backups   # container รันเป็น uid 1001 (app) ไม่ใช่ root — ต้อง own ไดเรกทอรีนี้เองก่อนถึงจะ backup ได้
 docker compose up -d --build
-docker compose exec app npm run seed   # ครั้งแรกเท่านั้น
+docker compose exec app node server/db/seed.js   # ครั้งแรกเท่านั้น
 docker compose logs -f app
 ```
 
@@ -182,18 +193,20 @@ echo "backup ok: $STAMP"
 0 2 * * * docker compose -f /opt/jobcard-pro/docker-compose.yml exec -T app sh /app/scripts/backup.sh
 ```
 
-**กู้คืน**
+**กู้คืน** (รันบนโฮสต์ — `./backups` ไม่ใช่ `/backup`; `/backup` คือ path
+*ข้างใน container* เท่านั้น ดู docker-compose.yml's bind mount ด้านบน)
 
 ```bash
 docker compose stop app
-cp /backup/jobcard_20260901_0200.db ./data/jobcard.db
-tar xzf /backup/uploads_20260901_0200.tar.gz -C ./data
+cp ./backups/jobcard_20260901_0200.db ./data/jobcard.db
+tar xzf ./backups/uploads_20260901_0200.tar.gz -C ./data
 docker compose start app
 ```
 
 ## 8. Checklist ก่อนขึ้น Production
 
 - [ ] `.env` ตั้งค่าครบ และ **ไม่ได้** commit ขึ้น git
+- [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (build บนเครื่อง dev ไม่เคยทดสอบจริง — `better-sqlite3` ต้อง compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้มักเป็นเพราะขาด build tools ใน stage `deps`)
 - [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว
 - [ ] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
 - [ ] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง

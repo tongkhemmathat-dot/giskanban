@@ -13,4 +13,12 @@ RUN mkdir -p data/uploads && chown -R app:app data
 USER app
 EXPOSE 3000
 ENTRYPOINT ["/sbin/tini","--"]
-CMD ["sh","-c","npm run migrate && node server/index.js"]
+# Plain `node`, not `npm run migrate`/`npm run dev` — those scripts pass
+# --env-file=.env (added for local-dev convenience, so a bare `node
+# server/index.js` outside Docker still picks up .env), but this container
+# never has a real .env file on disk: docker-compose.yml's `env_file: .env`
+# injects those values as real process env vars at `docker compose up` time,
+# not by copying the file in. --env-file here would either crash on a
+# missing file, or (worse) only "work" because .env got baked into an image
+# layer — neither is what we want.
+CMD ["sh","-c","node server/db/migrate.js && node server/index.js"]

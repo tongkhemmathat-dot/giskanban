@@ -35,7 +35,7 @@ npm run dev
 git clone <repo> && cd jobcard-pro
 cp .env.example .env && nano .env      # ตั้ง DOMAIN + TEAM_PASSWORD_HASH (ดูวิธีสร้าง hash ด้านล่าง)
 docker compose up -d --build
-docker compose exec app npm run seed   # ครั้งแรกเท่านั้น — migrate รันอัตโนมัติตอน start
+docker compose exec app node server/db/seed.js   # ครั้งแรกเท่านั้น — migrate รันอัตโนมัติตอน start
 docker compose logs -f app
 ```
 
@@ -59,7 +59,7 @@ vercel --prod     # deploy ขึ้น production URL (*.vercel.app)
 
 หรือเข้า [vercel.com/new](https://vercel.com/new) แล้วเลือก import repo นี้จาก GitHub ก็ได้เหมือนกัน — ไม่ต้องตั้งค่าอะไรเพิ่ม (`vercel.json` มีครบแล้ว)
 
-⚠️ **นี่คือ demo เท่านั้น ไม่ใช่การ deploy จริง** — Vercel Functions ไม่มี disk ถาวร ระบบจะสร้างฐานข้อมูลใหม่ (seed data ชุดเดิม) ทุกครั้งที่ instance เย็นตัวลง (cold start) ข้อมูลที่สร้าง/แก้ระหว่าง session จะหายเมื่อ cold start รอบถัดไป และถ้ามีคนเข้าพร้อมกันหลาย session อาจเห็นข้อมูลไม่ตรงกัน (คนละ instance = คนละไฟล์ฐานข้อมูล) สำหรับใช้งานจริงให้ใช้ Docker Compose ด้านบน (`docs/09-deployment.md`) ซึ่งข้อมูล persist จริง
+⚠️ **นี่คือ demo เท่านั้น ไม่ใช่การ deploy จริง** — `api/index.js` ต่อกับ Turso (libSQL) แทน SQLite ไฟล์เดียวเมื่อตั้ง `TURSO_DATABASE_URL` ไว้ (ดู `server/db/connection.js`) ข้อมูลที่สร้าง/แก้จึง persist จริงข้ามทุก instance/cold start แล้ว — แต่ไฟล์แนบที่อัปโหลด (attachments) ยังเก็บใน `/tmp` ของแต่ละ instance เท่านั้น (หายเมื่อ cold start) และยังต้องพึ่ง external service (Turso) เพิ่มจากสถาปัตยกรรมที่ตั้งใจไว้ (SQLite ไฟล์เดียว ไม่มี dependency ภายนอก) สำหรับใช้งานจริงให้ใช้ Docker Compose ด้านบน (`docs/09-deployment.md`) ซึ่งเป็นสถาปัตยกรรมที่ตั้งใจไว้จริงๆ และไม่ต้องพึ่ง service ภายนอกเลย
 
 ---
 

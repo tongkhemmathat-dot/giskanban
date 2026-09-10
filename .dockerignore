@@ -1,0 +1,15 @@
+.git
+.claude
+.vercel
+node_modules
+data
+coverage
+tests
+
+# Never bake secrets into an image layer — docker-compose.yml's
+# `env_file: .env` injects these as real env vars at container start
+# instead (see Dockerfile's CMD comment).
+.env
+.env.*
+
+npm-debug.log
