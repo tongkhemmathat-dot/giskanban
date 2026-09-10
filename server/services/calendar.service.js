@@ -60,9 +60,20 @@ export async function addConnection(memberId, icsUrl) {
   parseIcsEvents(icsText, eventsWindow()); // throws AppError('INVALID_ICS', ...) if it isn't really an .ics file
 
   const connectionId = await db.transaction(upsertConnectionTxn)(memberId, icsUrl);
-  pollOneConnection(connectionId).catch((err) => {
+  // Awaited, not fire-and-forget: on Vercel's serverless runtime the function
+  // can freeze right after the HTTP response is sent, killing any still-
+  // pending background promise before it ever runs — a fire-and-forget sync
+  // here left lastSyncedAt stuck at null forever with no error either,
+  // because the fetch+DB write never got the chance to execute at all. This
+  // adds the fetch+parse+write latency to the connect request itself, which
+  // is the right tradeoff for a user-initiated, infrequent action — better to
+  // wait a moment and show real synced events than return instantly with a
+  // sync that may silently never complete.
+  try {
+    await pollOneConnection(connectionId);
+  } catch (err) {
     console.error('ซิงก์ปฏิทินหลังเชื่อมต่อไม่สำเร็จ:', err.message);
-  });
+  }
   return getConnectionStatus(memberId);
 }
 
