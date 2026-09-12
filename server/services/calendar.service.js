@@ -18,10 +18,10 @@ import { parseEventSubject } from '../utils/eventSubject.js';
 // calendar.view.js's week grid starts on Monday, so if "today" falls anywhere
 // but Monday, the cache has to reach back past the start of the current week
 // or the earlier weekdays render as empty gaps on the page the very first
-// time it's opened. 14 also gives the "previous week" nav button something
-// to show instead of an empty grid one page back.
-const WINDOW_BEFORE_DAYS = 14;
-const WINDOW_AFTER_DAYS = 14; // "team lead planning the next two weeks" horizon
+// time it's opened. 28 gives the "previous week" nav button several weeks of
+// history to show instead of an empty grid a page or two back.
+const WINDOW_BEFORE_DAYS = 28;
+const WINDOW_AFTER_DAYS = 28; // team lead planning a month ahead
 const FETCH_TIMEOUT_MS = 15_000;
 
 function eventsWindow() {
