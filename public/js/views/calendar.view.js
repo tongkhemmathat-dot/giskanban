@@ -64,7 +64,58 @@ export function mountCalendar(root) {
     hiddenMembers: new Set(),
     loading: true,
     syncing: false,
+    showSummary: false,
   };
+
+  // สรุปจำนวนงาน/ชั่วโมงรวมต่อคนของสัปดาห์ที่กำลังดูอยู่ — หัวหน้าทีมขอ
+  // "ดูง่ายๆ" ว่าใครมีงานเยอะแค่ไหน โดยไม่ต้องนับ chip ทีละวัน. คำนวณจาก
+  // state.events ที่โหลดมาแล้ว (เคารพ filter ของ hiddenMembers) ไม่ยิง request
+  // เพิ่ม เพราะข้อมูลชุดเดียวกับที่ตารางแสดงอยู่แล้ว.
+  function summaryRows() {
+    const byMember = new Map();
+    for (const c of state.connections) {
+      byMember.set(c.memberId, { memberId: c.memberId, memberName: c.memberName, memberColor: c.memberColor, count: 0, hours: 0, allDayCount: 0 });
+    }
+    for (const ev of state.events) {
+      if (state.hiddenMembers.has(ev.memberId)) continue;
+      const row = byMember.get(ev.memberId);
+      if (!row) continue;
+      row.count += 1;
+      if (ev.isAllDay) {
+        row.allDayCount += 1;
+      } else {
+        const start = new Date((ev.startAt || '').replace(' ', 'T'));
+        const end = new Date((ev.endAt || '').replace(' ', 'T'));
+        row.hours += Math.max(0, (end - start) / 3_600_000);
+      }
+    }
+    return [...byMember.values()].sort((a, b) => b.hours + b.count - (a.hours + a.count) || a.memberName.localeCompare(b.memberName, 'th'));
+  }
+
+  function summaryHTML() {
+    const rows = summaryRows();
+    return `
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-3">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-500 dark:text-slate-400 text-xs border-b border-slate-100 dark:border-slate-700">
+              <th class="px-4 py-2">สมาชิก</th><th>จำนวนงาน</th><th>ชั่วโมงรวม</th><th>ทั้งวัน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r) => `
+            <tr class="border-b border-slate-50 dark:border-slate-700/50 last:border-0">
+              <td class="px-4 py-2 dark:text-slate-200"><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style="background:${esc(r.memberColor || '#94a3b8')}"></span>${esc(r.memberName)}</td>
+              <td class="dark:text-slate-300">${r.count}</td>
+              <td class="dark:text-slate-300">${r.hours ? r.hours.toFixed(1) : '–'}</td>
+              <td class="dark:text-slate-300">${r.allDayCount || '–'}</td>
+            </tr>`).join('') || `<tr><td class="px-4 py-3 text-slate-400 dark:text-slate-500" colspan="4">ยังไม่มีสมาชิกเชื่อมต่อปฏิทิน</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
 
   // รายงาน CSV ของสัปดาห์ที่กำลังดูอยู่ (ช่วงเดียวกับที่ loadWeek() ดึงมาแสดง)
   // — หัวหน้าทีมขอรายงานงานของแต่ละคนจากปฏิทิน เพราะบางงานเป็นการประชุมที่
@@ -167,11 +218,13 @@ export function mountCalendar(root) {
         <button type="button" data-sync-now ${state.syncing ? 'disabled' : ''} class="text-sm px-3 py-1 rounded-md border border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">
           ${state.syncing ? 'กำลังซิงก์…' : '↻ ซิงก์'}
         </button>
+        <button type="button" data-toggle-summary class="text-sm px-3 py-1 rounded-md border ${state.showSummary ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'border-slate-300 dark:border-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}">📊 สรุปงาน</button>
         <a href="${exportUrl()}" class="text-sm border border-slate-300 dark:border-slate-600 rounded-md px-3 py-1 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-200" aria-label="ส่งออก CSV">📥 Export CSV</a>` : ''}
       </div>
     </div>
     ${state.connections.length ? `<div class="mb-3 flex flex-wrap gap-2">${filterChipsHTML()}</div>` : ''}
     ${needsReconnectHTML()}
+    ${state.showSummary ? summaryHTML() : ''}
     ${state.connections.length ? gridHTML() : emptyStateHTML()}`;
   }
 
@@ -233,6 +286,10 @@ export function mountCalendar(root) {
       loadWeek();
     });
     root.querySelector('[data-sync-now]')?.addEventListener('click', syncNow);
+    root.querySelector('[data-toggle-summary]')?.addEventListener('click', () => {
+      state.showSummary = !state.showSummary;
+      render();
+    });
 
     root.querySelectorAll('[data-member-chip]').forEach((btn) => {
       btn.addEventListener('click', () => {
