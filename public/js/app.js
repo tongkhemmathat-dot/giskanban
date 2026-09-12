@@ -13,6 +13,7 @@ import { mountTemplates } from './views/templates.view.js';
 import { mountRecurring } from './views/recurring.view.js';
 import { mountCalendar } from './views/calendar.view.js';
 import { openCreateModal } from './components/create-modal.js';
+import { maybeShowWelcomeModal } from './components/welcome-modal.js';
 import { initTheme, toggleTheme, getTheme } from './theme.js';
 import { initTextSize, toggleTextSize, getTextSize } from './textsize.js';
 
@@ -152,6 +153,7 @@ async function boot() {
   try {
     const data = await api.get('/bootstrap');
     store.setBootstrap(data); // triggers populateMemberSelect via the store.subscribe in init()
+    maybeShowWelcomeModal(); // no-op once "ฉันคือ" (jc_me) is already set
   } catch (err) {
     store.setStatus('error', err);
   }
