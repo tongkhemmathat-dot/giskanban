@@ -14,7 +14,13 @@ import { parseIcsEvents } from '../utils/ics.js';
 import { buildCsv } from '../utils/csv.js';
 import { parseEventSubject } from '../utils/eventSubject.js';
 
-const WINDOW_BEFORE_DAYS = 1; // absorbs ICT-vs-UTC "today" boundary edge cases
+// WINDOW_BEFORE_DAYS must cover at least a full week back from "today" —
+// calendar.view.js's week grid starts on Monday, so if "today" falls anywhere
+// but Monday, the cache has to reach back past the start of the current week
+// or the earlier weekdays render as empty gaps on the page the very first
+// time it's opened. 14 also gives the "previous week" nav button something
+// to show instead of an empty grid one page back.
+const WINDOW_BEFORE_DAYS = 14;
 const WINDOW_AFTER_DAYS = 14; // "team lead planning the next two weeks" horizon
 const FETCH_TIMEOUT_MS = 15_000;
 
