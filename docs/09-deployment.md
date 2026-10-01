@@ -415,13 +415,13 @@ docker compose start app
 
 ## 8. Checklist ก่อนขึ้น Production
 
-- [ ] `.env` ตั้งค่าครบ และ **ไม่ได้** commit ขึ้น git
-- [ ] deploy ผ่าน Portainer (§4.7): เช็คว่า container `app` เห็น env var ครบจริง (Console → `node -e "console.log(process.env.DB_PATH)"` หรือดู log ตอน start ว่า DB connect ผ่าน) — ยังไม่เคยทดสอบว่า Portainer เขียน `.env` ให้ `env_file: .env` อ่านถูกจริง
-- [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (ทดสอบ build + smoke test แล้วบน node:22-alpine: migrate ครบ, `/api/health` ตอบ 200 — `better-sqlite3` ต้องใช้ Node >=22 และ compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้ให้เช็คว่า base image เป็น node:22 และ stage `deps` มี python3/make/g++)
-- [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว
-- [ ] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
-- [ ] deploy แบบ subpath (§4.6): ทดสอบเข้า URL แบบ**ไม่มี** `/` ท้าย (เช่น `/jobcard`) แล้ว redirect ไป `/jobcard/` ถูกต้อง, static asset (`js/app.js` เป็นต้น) โหลดผ่าน ไม่ใช่ 404, และ API call ไม่หลุดไป path ที่ผิด (เปิด DevTools → Network ดู request ไป `/jobcard/api/...`)
-- [ ] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง
-- [ ] healthcheck ตอบ 200
+- [x] `.env` ตั้งค่าครบ และ **ไม่ได้** commit ขึ้น git
+- [x] deploy ผ่าน Portainer (§4.7): เช็คว่า container `app` เห็น env var ครบจริง (Console → `node -e "console.log(process.env.DB_PATH)"` หรือดู log ตอน start ว่า DB connect ผ่าน) — ทดสอบจริงแล้ว: Portainer **ไม่**เขียน `.env` ให้ ต้องใช้ `docker-compose.kuma.yml` ที่อ่านค่าจากช่อง Environment variables (§4.8)
+- [x] `docker compose up -d --build` ผ่านโดยไม่มี error (ทดสอบ build + smoke test แล้วบน node:22-alpine: migrate ครบ, `/api/health` ตอบ 200 — `better-sqlite3` ต้องใช้ Node >=22 และ compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้ให้เช็คว่า base image เป็น node:22 และ stage `deps` มี python3/make/g++)
+- [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว — **kuma.cdg.co.th: ตัดสินใจไม่เปิด** (เหมือน app อื่นบน nginx_proxy ตัวเดียวกัน) ใครเข้าเครือข่ายได้ก็เปิดได้
+- [x] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
+- [ ] deploy แบบ subpath (§4.6): ทดสอบเข้า URL แบบ**ไม่มี** `/` ท้าย (เช่น `/jobcard`) แล้ว redirect ไป `/jobcard/` ถูกต้อง, static asset (`js/app.js` เป็นต้น) โหลดผ่าน ไม่ใช่ 404, และ API call ไม่หลุดไป path ที่ผิด (เปิด DevTools → Network ดู request ไป `/jobcard/api/...`) — kuma.cdg.co.th (`/giskanban/`): redirect 301, static asset 200 และ `/api/health` ผ่าน nginx ตรวจแล้วด้วย curl; **ยังเหลือ** ตรวจ DevTools → Network ในเบราว์เซอร์จริง
+- [ ] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง — cron 02:00 ตั้งแล้ว (§7) และทดสอบรันจริงผ่าน; **ยังเหลือ** ทดสอบกู้คืน
+- [x] healthcheck ตอบ 200
 - [ ] แจ้งทีมว่า **ไม่มีระบบล็อกอิน** — ใครมี URL ก็เข้าได้
 - [ ] ทดสอบ smoke test 12 ข้อใน `docs/08-testing.md` ผ่านหมด
