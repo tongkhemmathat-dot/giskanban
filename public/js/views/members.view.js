@@ -134,7 +134,7 @@ export function mountMembers(root) {
       <summary class="cursor-pointer font-medium">วิธีขอลิงก์ iCal (.ics) จาก Outlook</summary>
       <ol class="list-decimal pl-5 mt-2 space-y-1.5 text-slate-600 dark:text-slate-300">
         <li>เปิด Outlook บนเว็บ (<span class="font-mono text-xs">outlook.office.com</span> หรือ <span class="font-mono text-xs">outlook.live.com</span>) แล้วกดไอคอนเฟือง ⚙️ <b>การตั้งค่า</b> (Settings) → <b>ปฏิทิน</b> (Calendar) → <b>ปฏิทินที่แชร์</b> (Shared calendars)</li>
-        <li>ในหัวข้อ <b>เผยแพร่ปฏิทิน</b> (Publish a calendar) เลือกปฏิทินของคุณ (ปกติคือ <b>ปฏิทิน</b>/Calendar) และเลือกสิทธิ์ <b>ดูรายละเอียดทั้งหมดได้</b> (Can view all details) — ถ้าเลือก "ว่าง/ไม่ว่าง" (free/busy) จะไม่มีหัวข้อและสถานที่ให้แสดง แล้วกด <b>เผยแพร่</b> (Publish)</li>
+        <li>ในหัวข้อ <b>เผยแพร่ปฏิทิน</b> (Publish a calendar) เลือกปฏิทินของคุณ (ปกติคือ <b>ปฏิทิน</b>/Calendar) และเลือกสิทธิ์ <b>สามารถดูชื่อเรื่องและตำแหน่งที่ตั้ง</b> (Can view titles and locations) — ระบบใช้แค่หัวข้อกับสถานที่ ไม่ต้องแชร์รายละเอียดทั้งหมด ห้ามเลือก "ดูเมื่อฉันไม่ว่าง" (Can view when I'm busy) เพราะจะไม่มีหัวข้อและสถานที่ให้แสดง แล้วกด <b>เผยแพร่</b> (Publish)</li>
         <li>จะเห็นลิงก์สองแบบ ให้คัดลอกลิงก์ <b>ICS</b> (ไม่ใช่ลิงก์ <b>HTML</b>) ด้วยปุ่ม <b>คัดลอกลิงก์</b> (Copy link) — ลิงก์ที่ถูกต้องขึ้นต้นด้วย <span class="font-mono text-xs">https://outlook.office365.com/owa/calendar/…</span> และลงท้าย <span class="font-mono text-xs">.ics</span></li>
         <li>กลับมาหน้านี้ กด <b>เชื่อมต่อปฏิทิน (iCal)</b> ที่แถวชื่อของคุณ วางลิงก์ แล้วกด <b>บันทึก</b></li>
       </ol>

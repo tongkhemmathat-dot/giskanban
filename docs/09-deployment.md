@@ -156,7 +156,7 @@ docker run --rm caddy caddy hash-password --plaintext 'รหัสของท�
 หรือขอสิทธิ์ IT ใดๆ แต่ละสมาชิกทำเองได้ในเบราว์เซอร์:
 
 1. เปิด Outlook บนเว็บ (outlook.office.com หรือ outlook.live.com) → ⚙️ Settings → Calendar → **Shared calendars**
-2. เลือก **Publish a calendar** → เลือกปฏิทินที่ต้องการ (ปกติคือ Calendar หลัก) → ระดับสิทธิ์เลือก **Can view all details** (ถ้าเลือก "Can view only free/busy" ระบบจะไม่มีหัวข้อ/สถานที่ให้แสดง)
+2. เลือก **Publish a calendar** → เลือกปฏิทินที่ต้องการ (ปกติคือ Calendar หลัก) → ระดับสิทธิ์เลือก **Can view titles and locations** (ไทย: "สามารถดูชื่อเรื่องและตำแหน่งที่ตั้ง") — ระบบใช้แค่หัวข้อกับสถานที่ ไม่จำเป็นต้องแชร์ "Can view all details"; ถ้าเลือก "Can view when I'm busy" (free/busy) ระบบจะไม่มีหัวข้อ/สถานที่ให้แสดง
 3. กด **Publish** → คัดลอกลิงก์ **ICS** (ไม่ใช่ลิงก์ HTML) ที่ขึ้นต้นด้วย `https://outlook.office365.com/owa/calendar/...` หรือ `https://outlook.live.com/owa/calendar/...`
 4. เอาลิงก์นี้ไปวางที่หน้า **สมาชิก** ในระบบ (ปุ่ม "เชื่อมต่อปฏิทิน (iCal)" ต่อแถวของตัวเอง)
 5. เปิด `CALENDAR_SYNC_ENABLED=true` และตั้งค่า `CALENDAR_ENCRYPTION_KEY` (คำสั่งสร้างอยู่ใน `.env.example`) ก่อน deploy — ค่านี้ใช้เข้ารหัสลิงก์ .ics ที่เก็บใน DB (เป็นลิงก์แบบ bearer token — ใครมีลิงก์ก็เห็นปฏิทินได้ จึงต้องเข้ารหัสไว้)
