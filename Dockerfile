@@ -1,9 +1,17 @@
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
+# better-sqlite3@13 requires Node >=22 (hence node:22 — node:20 yields a binary that
+# segfaults). If no prebuilt binary is fetchable for Alpine/musl, npm falls back
+# to node-gyp — which needs a toolchain. Kept in this stage only; the final
+# image copies node_modules across and never sees these packages.
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
-RUN npm ci --omit=dev
+# node:22-alpine already ships the Node headers under /usr/local/include/node;
+# pointing node-gyp at them avoids a download from unofficial-builds.nodejs.org
+# (which times out on networks that can't reach it).
+RUN npm_config_nodedir=/usr/local npm ci --omit=dev
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 RUN apk add --no-cache sqlite tini && \
     addgroup -g 1001 app && adduser -u 1001 -G app -s /bin/sh -D app
