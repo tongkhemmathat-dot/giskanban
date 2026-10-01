@@ -16,7 +16,7 @@
 │  Caddy — reverse proxy + basic auth + TLS                │
 └───────────────────┬──────────────────────────────────────┘
 ┌───────────────────▼──────────────────────────────────────┐
-│  Express (Node 20)                                       │
+│  Express (Node 22)                                       │
 │  routes/ ──→ middleware/validate (zod) ──→ services/     │
 │                                              │           │
 │                              utils/ (sla, code, position)│

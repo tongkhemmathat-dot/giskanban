@@ -39,12 +39,18 @@ CALENDAR_ENCRYPTION_KEY=      # 32 ไบต์ base64 — node -e "console.log(
 ## 2. `Dockerfile`
 
 ```dockerfile
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
+# better-sqlite3@13 ต้องใช้ Node >=22 (node:20 ได้ binary ที่ segfault ตอนสตาร์ท)
+# ถ้าไม่มี prebuilt สำหรับ Alpine/musl npm จะ compile เอง ซึ่งต้องมี toolchain —
+# ใส่ไว้เฉพาะ stage นี้ image สุดท้ายไม่มี
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
-RUN npm ci --omit=dev
+# node:22-alpine มี Node headers อยู่ที่ /usr/local/include/node แล้ว — ชี้ node-gyp
+# ไปใช้ของในเครื่อง ไม่ต้องโหลดจาก unofficial-builds.nodejs.org (timeout ในบางเครือข่าย)
+RUN npm_config_nodedir=/usr/local npm ci --omit=dev
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 RUN apk add --no-cache sqlite tini && \
     addgroup -g 1001 app && adduser -u 1001 -G app -s /bin/sh -D app
@@ -355,7 +361,7 @@ docker compose start app
 
 - [ ] `.env` ตั้งค่าครบ และ **ไม่ได้** commit ขึ้น git
 - [ ] deploy ผ่าน Portainer (§4.7): เช็คว่า container `app` เห็น env var ครบจริง (Console → `node -e "console.log(process.env.DB_PATH)"` หรือดู log ตอน start ว่า DB connect ผ่าน) — ยังไม่เคยทดสอบว่า Portainer เขียน `.env` ให้ `env_file: .env` อ่านถูกจริง
-- [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (build บนเครื่อง dev ไม่เคยทดสอบจริง — `better-sqlite3` ต้อง compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้มักเป็นเพราะขาด build tools ใน stage `deps`)
+- [ ] `docker compose up -d --build` ผ่านโดยไม่มี error (ทดสอบ build + smoke test แล้วบน node:22-alpine: migrate ครบ, `/api/health` ตอบ 200 — `better-sqlite3` ต้องใช้ Node >=22 และ compile บน Alpine/musl ตอน `npm ci`, ถ้า build พังตรงนี้ให้เช็คว่า base image เป็น node:22 และ stage `deps` มี python3/make/g++)
 - [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว
 - [ ] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
 - [ ] deploy แบบ subpath (§4.6): ทดสอบเข้า URL แบบ**ไม่มี** `/` ท้าย (เช่น `/jobcard`) แล้ว redirect ไป `/jobcard/` ถูกต้อง, static asset (`js/app.js` เป็นต้น) โหลดผ่าน ไม่ใช่ 404, และ API call ไม่หลุดไป path ที่ผิด (เปิด DevTools → Network ดู request ไป `/jobcard/api/...`)

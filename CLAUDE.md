@@ -30,7 +30,7 @@
 ## 3. Tech Stack
 
 ```yaml
-runtime:   Node.js 20 LTS (ESM, "type": "module")
+runtime:   Node.js 22 LTS (ESM, "type": "module")
 server:    Express 4
 database:  SQLite + better-sqlite3   # ไฟล์เดียว backup ง่าย
 validate:  zod
