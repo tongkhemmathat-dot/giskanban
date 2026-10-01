@@ -10,6 +10,7 @@ import { api } from '../api.js';
 import { toast } from '../components/toast.js';
 import { esc } from '../components/card.js';
 import { openCreateModal } from '../components/create-modal.js';
+import { eventDayKeys } from '../utils/event-days.js';
 
 const DAY_LABELS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 const MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -49,9 +50,19 @@ function fmtTimeRange(ev) {
   return `${time(ev.startAt)}–${time(ev.endAt)}`;
 }
 
+function fmtDayLabelFull(isoDate) {
+  const d = new Date(`${isoDate}T00:00:00`);
+  return `${DAY_LABELS[(d.getDay() + 6) % 7]} ${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 function fmtEventDateTimeFull(ev) {
-  const start = new Date((ev.startAt || '').replace(' ', 'T'));
-  const dayLabel = `${DAY_LABELS[(start.getDay() + 6) % 7]} ${start.getDate()} ${MONTH_SHORT[start.getMonth()]} ${start.getFullYear()}`;
+  const keys = eventDayKeys(ev);
+  const first = keys[0] || (ev.startAt || '').slice(0, 10);
+  const dayLabel = fmtDayLabelFull(first);
+  if (keys.length > 1) {
+    const range = `${dayLabel} – ${fmtDayLabelFull(keys[keys.length - 1])} (${keys.length} วัน)`;
+    return ev.isAllDay ? `${range} (ทั้งวัน)` : `${range} · ${fmtTimeRange(ev)} น.`;
+  }
   return ev.isAllDay ? `${dayLabel} (ทั้งวัน)` : `${dayLabel} · ${fmtTimeRange(ev)} น.`;
 }
 
@@ -131,12 +142,16 @@ export function mountCalendar(root) {
     for (const d of Array.from({ length: 7 }, (_, i) => addDays(state.weekStart, i))) {
       byDay.set(fmtISODate(d), []);
     }
+    // An event spanning several days appears on every day it covers (not just
+    // the start day) — each entry remembers which day of the span it is.
     for (const ev of state.events) {
       if (state.hiddenMembers.has(ev.memberId)) continue;
-      const key = (ev.startAt || '').slice(0, 10);
-      if (byDay.has(key)) byDay.get(key).push(ev);
+      const keys = eventDayKeys(ev);
+      keys.forEach((key, i) => {
+        if (byDay.has(key)) byDay.get(key).push({ ev, dayNo: i + 1, dayCount: keys.length });
+      });
     }
-    for (const list of byDay.values()) list.sort((a, b) => (a.startAt || '').localeCompare(b.startAt || ''));
+    for (const list of byDay.values()) list.sort((a, b) => (a.ev.startAt || '').localeCompare(b.ev.startAt || ''));
     return byDay;
   }
 
@@ -164,11 +179,14 @@ export function mountCalendar(root) {
     </div>`;
   }
 
-  function eventChipHTML(ev) {
+  function eventChipHTML({ ev, dayNo, dayCount }) {
+    // Multi-day: show "วัน 2/3" instead of repeating the first day's clock time
+    // on every day (a timed 22:00→06:00 event isn't "22:00–06:00" on day 2).
+    const when = dayCount > 1 ? `วัน ${dayNo}/${dayCount}${ev.isAllDay ? '' : ` · ${fmtTimeRange(ev)}`}` : fmtTimeRange(ev);
     return `
     <button type="button" data-event-idx="${ev._idx}" class="w-full text-left text-xs rounded-md px-2 py-1 border-l-2 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800" style="border-color:${esc(ev.memberColor || '#94a3b8')}">
       <div class="font-medium text-slate-700 dark:text-slate-200 truncate" title="${esc(ev.subject)}">${esc(ev.subject)}</div>
-      <div class="text-slate-400 dark:text-slate-500">${esc(fmtTimeRange(ev))} · ${esc(ev.memberName)}</div>
+      <div class="text-slate-400 dark:text-slate-500">${esc(when)} · ${esc(ev.memberName)}</div>
     </button>`;
   }
 
