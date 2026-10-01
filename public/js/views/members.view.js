@@ -129,7 +129,18 @@ export function mountMembers(root) {
           ${store.state.members.map(rowHTML).join('')}
         </tbody>
       </table>
-    </div>`;
+    </div>
+    <details class="mt-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm dark:text-slate-200">
+      <summary class="cursor-pointer font-medium">วิธีขอลิงก์ iCal (.ics) จาก Outlook</summary>
+      <ol class="list-decimal pl-5 mt-2 space-y-1.5 text-slate-600 dark:text-slate-300">
+        <li>เปิด Outlook บนเว็บ (<span class="font-mono text-xs">outlook.office.com</span> หรือ <span class="font-mono text-xs">outlook.live.com</span>) แล้วกด ⚙️ <b>Settings</b> → <b>Calendar</b> → <b>Shared calendars</b></li>
+        <li>ในหัวข้อ <b>Publish a calendar</b> เลือกปฏิทินของคุณ (ปกติคือ <b>Calendar</b>) และเลือกสิทธิ์ <b>Can view all details</b> (ถ้าเลือก "free/busy" จะไม่มีหัวข้อและสถานที่ให้แสดง) แล้วกด <b>Publish</b></li>
+        <li>คัดลอกลิงก์ <b>ICS</b> (ไม่ใช่ลิงก์ HTML) — ขึ้นต้นด้วย <span class="font-mono text-xs">https://outlook.office365.com/owa/calendar/…</span> และลงท้าย <span class="font-mono text-xs">.ics</span></li>
+        <li>กลับมาหน้านี้ กด <b>เชื่อมต่อปฏิทิน (iCal)</b> ที่แถวชื่อของคุณ วางลิงก์ แล้วกด <b>บันทึก</b></li>
+      </ol>
+      <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">⚠️ ลิงก์นี้เป็นลิงก์สาธารณะ — ใครมีลิงก์ก็เปิดดูปฏิทินได้ อย่าแชร์ต่อ ถ้าต้องการเลิกใช้ให้กลับไปกด Unpublish ใน Outlook</p>
+      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ถ้าไม่เห็นหัวข้อ Publish a calendar แปลว่าองค์กรปิดสิทธิ์นี้ไว้ — ต้องให้ IT เปิดให้ก่อน</p>
+    </details>`;
     bind();
   }
 
