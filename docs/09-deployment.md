@@ -291,6 +291,13 @@ host นี้รัน nginx เป็น container `nginx_proxy` (config: `/da
 ไม่ได้ ให้ใช้ `docker-compose.kuma.yml` แทน (`extends` ของ `docker-compose.yml`
 แล้วต่อ `data_network` + ตั้ง `container_name: giskanban-app`)
 
+ข้อมูลถาวรอยู่ที่ `/data/docker/giskanban/{data,backups}` เหมือน app อื่นบน host นี้
+(bind mount ใน `docker-compose.kuma.yml` แทนที่ `./data`/`./backups`) — ต้องสร้างและ
+`chown 1001:1001` ก่อน deploy ครั้งแรก (uid ของ user `app` ใน container) ถ้าไม่มี
+root ใช้ container ชั่วคราวแทนได้:
+`docker run --rm -v /data/docker/giskanban:/d --entrypoint chown nginx:alpine -R 1001:1001 /d/data /d/backups`
+ส่วน cron backup (§7) ให้ใช้ `docker exec giskanban-app sh /app/scripts/backup.sh`
+
 1. Portainer → Stacks → Add stack → Repository (ตาม §4.7) แต่ตั้ง
    **Compose path = `docker-compose.kuma.yml`** และตั้ง `NODE_ENV=production`
    (สร้าง `CALENDAR_ENCRYPTION_KEY` ใหม่สำหรับ production ถ้าเปิดปฏิทิน —
