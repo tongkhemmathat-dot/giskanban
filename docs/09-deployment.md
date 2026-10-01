@@ -303,6 +303,12 @@ root ใช้ container ชั่วคราวแทนได้:
 `docker run --rm -v /data/docker/giskanban:/d --entrypoint chown nginx:alpine -R 1001:1001 /d/data /d/backups`
 ส่วน cron backup (§7) ให้ใช้ `docker exec giskanban-app sh /app/scripts/backup.sh`
 
+**ข้อมูลตั้งต้นบนระบบจริง:** ใช้ `node server/db/seed.js --base` (ใส่เฉพาะบอร์ด ลิสต์
+เทมเพลต — ไม่มีสมาชิก/ใบงานตัวอย่าง รันซ้ำได้ปลอดภัย: ถ้ามีบอร์ดอยู่แล้วจะไม่ทำอะไร)
+แล้วเพิ่มสมาชิกจริงในหน้า "สมาชิก" — ห้ามรัน seed เต็มชุด (ไม่มี `--base`) บนระบบจริง
+เพราะจะใส่สมาชิกจำลองและใบงานตัวอย่างเข้าไปด้วย:
+`docker exec giskanban-app node server/db/seed.js --base`
+
 1. Portainer → Stacks → Add stack → Repository (ตาม §4.7) แต่ตั้ง
    **Compose path = `docker-compose.kuma.yml`** และตั้ง `NODE_ENV=production`
    (สร้าง `CALENDAR_ENCRYPTION_KEY` ใหม่สำหรับ production ถ้าเปิดปฏิทิน —

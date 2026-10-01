@@ -374,12 +374,33 @@ export async function seedDatabase(db) {
   return { members, boardId, lists, templates, cards };
 }
 
+// Production bootstrap: only what the app needs to be usable (board, lists,
+// templates) — no sample members or cards. Real members are added in the UI.
+// Refuses to run twice so a re-run can't create a second board.
+export async function seedBase(db) {
+  const existing = await db.get('SELECT COUNT(*) AS n FROM boards');
+  if (existing.n > 0) return { skipped: true };
+  const { boardId, lists } = await insertBoardAndLists(db);
+  const templates = await insertTemplates(db);
+  return { skipped: false, boardId, lists, templates };
+}
+
 // Run directly via `npm run seed` — seeds the DB at DB_PATH.
+// `--base` seeds only the production essentials (see seedBase).
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { default: db } = await import('./connection.js');
-  const result = await seedDatabase(db);
-  console.warn(
-    `Seeded ${Object.keys(result.members).length} members, ${Object.keys(result.lists).length} lists, ` +
-      `${Object.keys(result.templates).length} templates, ${Object.keys(result.cards).length} cards.`,
-  );
+  if (process.argv.includes('--base')) {
+    const result = await seedBase(db);
+    console.warn(
+      result.skipped
+        ? 'Board already exists — nothing seeded.'
+        : `Seeded 1 board, ${Object.keys(result.lists).length} lists, ${Object.keys(result.templates).length} templates.`,
+    );
+  } else {
+    const result = await seedDatabase(db);
+    console.warn(
+      `Seeded ${Object.keys(result.members).length} members, ${Object.keys(result.lists).length} lists, ` +
+        `${Object.keys(result.templates).length} templates, ${Object.keys(result.cards).length} cards.`,
+    );
+  }
 }
