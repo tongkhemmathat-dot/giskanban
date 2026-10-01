@@ -1,22 +1,47 @@
 # Deploy variant for the kuma.cdg.co.th host (Portainer: set "Compose path" to
-# this file). The host's nginx runs in the `nginx_proxy` container and proxies
-# to other containers by name over the shared `data_network` — it cannot reach
-# 127.0.0.1:3000 on the host, so the app joins that network instead.
-# Persistent data lives under /data/docker/giskanban like the other apps on
-# this host (bind mounts here replace the ./data and ./backups ones from
-# docker-compose.yml, matched by container path). Everything else (build,
-# env_file, healthcheck) comes from docker-compose.yml.
+# this file). Self-contained on purpose — it does NOT extend docker-compose.yml:
+#  - Portainer does not write a .env file into the stack dir, so `env_file: .env`
+#    fails ("env file .../.env not found"). Instead every setting is read from
+#    the stack's "Environment variables" box via ${VAR} interpolation.
+#  - The host's nginx runs in the `nginx_proxy` container and proxies to other
+#    containers by name over `data_network` (it cannot reach 127.0.0.1:3000 on
+#    the host), so the app joins that network and publishes no host port.
+#  - Persistent data lives under /data/docker/giskanban like the other apps here.
 # See docs/09-deployment.md §4.8.
 services:
   app:
-    extends:
-      file: docker-compose.yml
-      service: app
+    build: .
     container_name: giskanban-app
+    restart: unless-stopped
     networks: [data_network]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DB_PATH: ${DB_PATH:-./data/jobcard.db}
+      UPLOAD_DIR: ${UPLOAD_DIR:-./data/uploads}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      BOARD_NAME: ${BOARD_NAME:-NOC Operations}
+      TZ: ${TZ:-Asia/Bangkok}
+      NOTIFY_ENABLED: ${NOTIFY_ENABLED:-false}
+      NOTIFY_HOUR: ${NOTIFY_HOUR:-8}
+      NOTIFY_EMAIL_TO: ${NOTIFY_EMAIL_TO:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      CALENDAR_SYNC_ENABLED: ${CALENDAR_SYNC_ENABLED:-false}
+      CALENDAR_POLL_MINUTES: ${CALENDAR_POLL_MINUTES:-10}
+      CALENDAR_ENCRYPTION_KEY: ${CALENDAR_ENCRYPTION_KEY:-}
     volumes:
       - /data/docker/giskanban/data:/app/data
       - /data/docker/giskanban/backups:/backup
+    healthcheck:
+      test: ["CMD","wget","-qO-","http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   data_network:

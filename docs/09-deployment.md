@@ -263,6 +263,8 @@ daemon เดียวกัน ตัว container/port ที่ nginx proxy �
    ใช้ `caddy` service (nginx ที่มีอยู่แล้วจัดการเรื่องนี้แทน) Portainer จะ
    เขียนค่าพวกนี้ลงไฟล์ `.env` จริงในโฟลเดอร์ stack บน host ให้เอง ซึ่ง
    `env_file: .env` ใน `docker-compose.yml` ก็จะอ่านไฟล์เดียวกันนี้ได้พอดี —
+   **สมมติฐานนี้ผิดในทางปฏิบัติ** (Portainer ไม่เขียน `.env` ให้ ดู §4.8) ถ้า deploy
+   ผ่าน Portainer ให้ใช้ `docker-compose.kuma.yml` ที่ไม่พึ่ง `.env` แทน —
    **แต่ยังไม่เคยทดสอบจริงกับ Portainer โดยตรง** ถ้า container ตั้งค่า/ต่อ DB
    ไม่ได้หลัง deploy ให้เช็คก่อนว่า `.env` ที่ Portainer สร้างมีค่าครบจริง
 3. **Deploy the stack** — Portainer clone repo + `docker compose up -d
@@ -288,11 +290,14 @@ path จริงได้จากหน้า stack ใน Portainer เอง
 host นี้รัน nginx เป็น container `nginx_proxy` (config: `/data/docker/nginx/nginx.conf`)
 ที่ proxy ไปหา container อื่น **ด้วยชื่อ container ผ่าน `data_network`** — ไม่ใช่
 `127.0.0.1` เพราะใน container นั้น `127.0.0.1` คือตัว nginx เอง ดังนั้น §4.6 ใช้ตรงๆ
-ไม่ได้ ให้ใช้ `docker-compose.kuma.yml` แทน (`extends` ของ `docker-compose.yml`
-แล้วต่อ `data_network` + ตั้ง `container_name: giskanban-app`)
+ไม่ได้ ให้ใช้ `docker-compose.kuma.yml` แทน (ไฟล์ที่ทำงานครบในตัว ไม่ได้ `extends`
+`docker-compose.yml`: ต่อ `data_network`, ตั้ง `container_name: giskanban-app`
+และ **ไม่ใช้ `env_file`** — ทดสอบจริงแล้วว่า Portainer ไม่เขียน `.env` ลงโฟลเดอร์
+stack (error `env file /data/compose/<id>/.env not found`) ค่าทั้งหมดจึงอ่านจาก
+ช่อง Environment variables ของ Portainer ผ่าน `${VAR}` พร้อมค่าเริ่มต้นในไฟล์)
 
 ข้อมูลถาวรอยู่ที่ `/data/docker/giskanban/{data,backups}` เหมือน app อื่นบน host นี้
-(bind mount ใน `docker-compose.kuma.yml` แทนที่ `./data`/`./backups`) — ต้องสร้างและ
+(bind mount ใน `docker-compose.kuma.yml`) — ต้องสร้างและ
 `chown 1001:1001` ก่อน deploy ครั้งแรก (uid ของ user `app` ใน container) ถ้าไม่มี
 root ใช้ container ชั่วคราวแทนได้:
 `docker run --rm -v /data/docker/giskanban:/d --entrypoint chown nginx:alpine -R 1001:1001 /d/data /d/backups`
