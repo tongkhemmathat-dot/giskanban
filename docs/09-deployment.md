@@ -283,6 +283,44 @@ path จริงได้จากหน้า stack ใน Portainer เอง
 ให้ตรง หรือจะ `docker exec <ชื่อ container app>` ตรงๆ แทน `docker compose exec`
 ก็ได้เหมือนกัน (ดูชื่อ container จริงได้จาก Portainer หรือ `docker ps`)
 
+## 4.8 Deploy บน kuma.cdg.co.th (nginx เป็น container, subpath `/giskanban/`)
+
+host นี้รัน nginx เป็น container `nginx_proxy` (config: `/data/docker/nginx/nginx.conf`)
+ที่ proxy ไปหา container อื่น **ด้วยชื่อ container ผ่าน `data_network`** — ไม่ใช่
+`127.0.0.1` เพราะใน container นั้น `127.0.0.1` คือตัว nginx เอง ดังนั้น §4.6 ใช้ตรงๆ
+ไม่ได้ ให้ใช้ `docker-compose.kuma.yml` แทน (`extends` ของ `docker-compose.yml`
+แล้วต่อ `data_network` + ตั้ง `container_name: giskanban-app`)
+
+1. Portainer → Stacks → Add stack → Repository (ตาม §4.7) แต่ตั้ง
+   **Compose path = `docker-compose.kuma.yml`** และตั้ง `NODE_ENV=production`
+   (สร้าง `CALENDAR_ENCRYPTION_KEY` ใหม่สำหรับ production ถ้าเปิดปฏิทิน —
+   ห้ามใช้ค่าจากเครื่อง dev)
+2. **backup config ก่อนแก้ทุกครั้ง** (ตามธรรมเนียมของ host นี้):
+   `cp -p nginx.conf nginx.conf.YYYYMMDD-pre-giskanban` ในโฟลเดอร์
+   `/data/docker/nginx/`
+3. เพิ่ม location ใน `server { listen 443 ... }` — ใช้ตัวแปร + `rewrite`
+   แทน `proxy_pass http://giskanban-app:3000/;` ตรงๆ เพื่อไม่ให้ `nginx -t`/reload
+   ล้ม (`host not found in upstream`) ตอน container ยังไม่ขึ้น ซึ่งจะกระทบ app
+   อื่นทั้งหมดบน proxy เดียวกัน (`resolver 127.0.0.11` มีอยู่ใน config แล้ว):
+
+   ```nginx
+   location = /giskanban { return 301 /giskanban/; }
+
+   location /giskanban/ {
+       set $gk http://giskanban-app:3000;
+       rewrite ^/giskanban/(.*)$ /$1 break;
+       proxy_pass $gk;
+   }
+   ```
+
+   (`proxy_set_header` ระดับ `server{}` เดิมถูก inherit อยู่แล้ว และ
+   `client_max_body_size 100M` เกิน `MAX_UPLOAD_MB` อยู่แล้ว)
+4. `docker exec nginx_proxy nginx -t` ผ่านแล้วค่อย `docker exec nginx_proxy nginx -s reload`
+5. rollback: `cp -p nginx.conf.YYYYMMDD-pre-giskanban nginx.conf` แล้ว test + reload
+
+> app อื่นบน proxy นี้ไม่มี auth ที่ชั้น nginx — `/giskanban/` ก็ตามนั้น (ตัดสินใจ
+> แล้ว) ใครเข้าเครือข่ายนี้ได้ก็เปิดได้ ตรงกับข้อ "ไม่มีระบบล็อกอิน" ใน checklist §8
+
 ## 5. ขั้นตอน Deploy ครั้งแรก
 
 > deploy ผ่าน Portainer ให้ดู §4.7 แทน — ขั้นตอนด้านล่างนี้คือคำสั่ง CLI ตรงๆ

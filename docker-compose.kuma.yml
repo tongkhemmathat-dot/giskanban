@@ -1,0 +1,17 @@
+# Deploy variant for the kuma.cdg.co.th host (Portainer: set "Compose path" to
+# this file). The host's nginx runs in the `nginx_proxy` container and proxies
+# to other containers by name over the shared `data_network` — it cannot reach
+# 127.0.0.1:3000 on the host, so the app joins that network instead.
+# Everything else (build, env_file, volumes, healthcheck) comes from
+# docker-compose.yml. See docs/09-deployment.md §4.8.
+services:
+  app:
+    extends:
+      file: docker-compose.yml
+      service: app
+    container_name: giskanban-app
+    networks: [data_network]
+
+networks:
+  data_network:
+    external: true
