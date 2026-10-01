@@ -421,7 +421,7 @@ docker compose start app
 - [ ] Basic Auth หรือ IP allowlist เปิดใช้แล้ว — **kuma.cdg.co.th: ตัดสินใจไม่เปิด** (เหมือน app อื่นบน nginx_proxy ตัวเดียวกัน) ใครเข้าเครือข่ายได้ก็เปิดได้
 - [x] ไม่ map port 3000 ออกสู่อินเทอร์เน็ตโดยตรง
 - [ ] deploy แบบ subpath (§4.6): ทดสอบเข้า URL แบบ**ไม่มี** `/` ท้าย (เช่น `/jobcard`) แล้ว redirect ไป `/jobcard/` ถูกต้อง, static asset (`js/app.js` เป็นต้น) โหลดผ่าน ไม่ใช่ 404, และ API call ไม่หลุดไป path ที่ผิด (เปิด DevTools → Network ดู request ไป `/jobcard/api/...`) — kuma.cdg.co.th (`/giskanban/`): redirect 301, static asset 200 และ `/api/health` ผ่าน nginx ตรวจแล้วด้วย curl; **ยังเหลือ** ตรวจ DevTools → Network ในเบราว์เซอร์จริง
-- [ ] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง — cron 02:00 ตั้งแล้ว (§7) และทดสอบรันจริงผ่าน; **ยังเหลือ** ทดสอบกู้คืน
+- [x] `data/` มี backup อัตโนมัติและทดสอบกู้คืนแล้ว 1 ครั้ง — cron 02:00 ตั้งแล้ว (§7) และทดสอบรันจริงผ่าน; ทดสอบกู้คืนแล้ว 2026-10-01 โดยกู้ไฟล์ล่าสุด (`.db` + `uploads_*.tar.gz`) ลงโฟลเดอร์ชั่วคราวใน container: `PRAGMA integrity_check` = ok, ข้อมูลครบ (1 บอร์ด 6 ลิสต์ 7 สมาชิก), ไม่แตะข้อมูลจริง — **ยังไม่เคย** กู้ทับของจริงด้วยขั้นตอน "กู้คืน" ใน §7 (ต้องหยุด `app` ชั่วคราว)
 - [x] healthcheck ตอบ 200
 - [ ] แจ้งทีมว่า **ไม่มีระบบล็อกอิน** — ใครมี URL ก็เข้าได้
 - [ ] ทดสอบ smoke test 12 ข้อใน `docs/08-testing.md` ผ่านหมด
