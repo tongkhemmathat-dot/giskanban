@@ -133,11 +133,12 @@ export function mountMembers(root) {
     <details class="mt-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm dark:text-slate-200">
       <summary class="cursor-pointer font-medium">วิธีขอลิงก์ iCal (.ics) จาก Outlook</summary>
       <ol class="list-decimal pl-5 mt-2 space-y-1.5 text-slate-600 dark:text-slate-300">
-        <li>เปิด Outlook บนเว็บ (<span class="font-mono text-xs">outlook.office.com</span> หรือ <span class="font-mono text-xs">outlook.live.com</span>) แล้วกด ⚙️ <b>Settings</b> → <b>Calendar</b> → <b>Shared calendars</b></li>
-        <li>ในหัวข้อ <b>Publish a calendar</b> เลือกปฏิทินของคุณ (ปกติคือ <b>Calendar</b>) และเลือกสิทธิ์ <b>Can view all details</b> (ถ้าเลือก "free/busy" จะไม่มีหัวข้อและสถานที่ให้แสดง) แล้วกด <b>Publish</b></li>
-        <li>คัดลอกลิงก์ <b>ICS</b> (ไม่ใช่ลิงก์ HTML) — ขึ้นต้นด้วย <span class="font-mono text-xs">https://outlook.office365.com/owa/calendar/…</span> และลงท้าย <span class="font-mono text-xs">.ics</span></li>
+        <li>เปิด Outlook บนเว็บ (<span class="font-mono text-xs">outlook.office.com</span> หรือ <span class="font-mono text-xs">outlook.live.com</span>) แล้วกดไอคอนเฟือง ⚙️ <b>การตั้งค่า</b> (Settings) → <b>ปฏิทิน</b> (Calendar) → <b>ปฏิทินที่แชร์</b> (Shared calendars)</li>
+        <li>ในหัวข้อ <b>เผยแพร่ปฏิทิน</b> (Publish a calendar) เลือกปฏิทินของคุณ (ปกติคือ <b>ปฏิทิน</b>/Calendar) และเลือกสิทธิ์ <b>ดูรายละเอียดทั้งหมดได้</b> (Can view all details) — ถ้าเลือก "ว่าง/ไม่ว่าง" (free/busy) จะไม่มีหัวข้อและสถานที่ให้แสดง แล้วกด <b>เผยแพร่</b> (Publish)</li>
+        <li>จะเห็นลิงก์สองแบบ ให้คัดลอกลิงก์ <b>ICS</b> (ไม่ใช่ลิงก์ <b>HTML</b>) ด้วยปุ่ม <b>คัดลอกลิงก์</b> (Copy link) — ลิงก์ที่ถูกต้องขึ้นต้นด้วย <span class="font-mono text-xs">https://outlook.office365.com/owa/calendar/…</span> และลงท้าย <span class="font-mono text-xs">.ics</span></li>
         <li>กลับมาหน้านี้ กด <b>เชื่อมต่อปฏิทิน (iCal)</b> ที่แถวชื่อของคุณ วางลิงก์ แล้วกด <b>บันทึก</b></li>
       </ol>
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">ชื่อเมนูภาษาไทยอาจต่างกันเล็กน้อยตามเวอร์ชันของ Outlook — ถ้าหาไม่เจอ ให้ดูชื่อภาษาอังกฤษในวงเล็บ หรือสลับภาษาของ Outlook เป็น English ชั่วคราว</p>
       <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">⚠️ ลิงก์นี้เป็นลิงก์สาธารณะ — ใครมีลิงก์ก็เปิดดูปฏิทินได้ อย่าแชร์ต่อ ถ้าต้องการเลิกใช้ให้กลับไปกด Unpublish ใน Outlook</p>
       <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">ถ้าไม่เห็นหัวข้อ Publish a calendar แปลว่าองค์กรปิดสิทธิ์นี้ไว้ — ต้องให้ IT เปิดให้ก่อน</p>
     </details>`;
